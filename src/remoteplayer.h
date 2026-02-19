@@ -132,6 +132,14 @@ public:
 
 	void onSuccessfulSave();
 
+	// Phase-aware position implementation
+	v3f getPosition() const override {
+		return m_sao ? m_sao->getBasePosition() : v3f(0, 0, 0);
+	}
+
+	// Server-side phase change handling with world state reload
+	void changePhase(s16 new_phase) override;
+
 private:
 	PlayerSAO *m_sao = nullptr;
 	bool m_dirty = false;

@@ -236,11 +236,16 @@ public:
 	void handleCommand_RemovedSounds(NetworkPacket* pkt);
 	void handleCommand_NodeMetaFields(NetworkPacket* pkt);
 	void handleCommand_InventoryFields(NetworkPacket* pkt);
-	void handleCommand_FirstSrp(NetworkPacket* pkt);
-	void handleCommand_SrpBytesA(NetworkPacket* pkt);
-	void handleCommand_SrpBytesM(NetworkPacket* pkt);
+	void handleCommand_FirstSrp(NetworkPacket *pkt);
+	void handleCommand_SrpBytesA(NetworkPacket *pkt);
+	void handleCommand_SrpBytesM(NetworkPacket *pkt);
 	void handleCommand_HaveMedia(NetworkPacket *pkt);
 	void handleCommand_UpdateClientInfo(NetworkPacket *pkt);
+
+	// Phase Dimension System: Phase change handling
+	void handlePlayerPhaseChange(RemotePlayer *player, s16 new_phase);
+	void sendPhaseChangeToClient(RemotePlayer *player);
+	bool isPhaseTransitionPortal(const v3s16 &pos, s16 current_phase, s16 &target_phase);
 
 	void ProcessData(NetworkPacket *pkt);
 
@@ -765,6 +770,10 @@ private:
 		This is behind m_env_mutex
 	*/
 	std::queue<MapEditEvent*> m_unsent_map_edit_queue;
+
+	// Phase Dimension System: Phase generation registry
+	std::unordered_map<s16, std::function<MapBlock*(const v4s16&)>> m_phase_generators;
+
 	/*
 		If a non-empty area, map edit events contained within are left
 		unsent. Done at map generation time to speed up editing of the

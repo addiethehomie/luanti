@@ -29,14 +29,25 @@ class MapDatabase : public Database
 public:
 	virtual ~MapDatabase() = default;
 
+	// Legacy block operations (Phase 0 only - backwards compatible)
 	virtual bool saveBlock(const v3s16 &pos, std::string_view data) = 0;
 	virtual void loadBlock(const v3s16 &pos, std::string *block) = 0;
 	virtual bool deleteBlock(const v3s16 &pos) = 0;
 
+	// Phase-aware block operations (now uses unified schema)
+	virtual bool saveBlock(const v4s16 &pos, std::string_view data) = 0;
+	virtual void loadBlock(const v4s16 &pos, std::string *block) = 0;
+	virtual bool deleteBlock(const v4s16 &pos) = 0;
+
 	static s64 getBlockAsInteger(const v3s16 &pos);
 	static v3s16 getIntegerAsBlock(s64 i);
 
+	// Phase-aware integer conversion
+	static s64 getBlockAsInteger(const v4s16 &pos);
+	static v4s16 getIntegerAsBlock(s64 i);
+
 	virtual void listAllLoadableBlocks(std::vector<v3s16> &dst) = 0;
+	virtual void listAllLoadableBlocks(std::vector<v4s16> &dst) = 0;
 };
 
 class PlayerSAO;

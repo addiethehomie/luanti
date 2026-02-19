@@ -102,3 +102,30 @@ void RemotePlayer::onSuccessfulSave()
 	if (m_sao)
 		m_sao->getMeta().setModified(false);
 }
+
+void RemotePlayer::changePhase(s16 new_phase)
+{
+	// Update player phase state
+	m_current_phase = new_phase;
+	m_position.P = new_phase;
+	
+	// Server-side world state reload
+	if (m_sao) {
+		// Get current position for phase transition
+		v3f current_pos = m_sao->getBasePosition();
+		
+		// Remove from current phase
+		m_sao->clearChildAttachments();
+		m_sao->clearParentAttachment();
+		
+		// Update position in new phase (server handles phase routing)
+		m_sao->setPos(current_pos);
+		
+		// Force world reload around player for new phase
+		// This ensures blocks from new phase are loaded and generated
+		Server *server = dynamic_cast<Server*>(m_sao->getEnv()->getGameDef());
+		if (server) {
+			server->handlePlayerPhaseChange(this, new_phase);
+		}
+	}
+}

@@ -29,13 +29,21 @@ Map::Map(IGameDef *gamedef):
 
 Map::~Map()
 {
-	// Free all sectors
+	// Free all phase-aware blocks
 	size_t used = 0;
-	for (auto &sector : m_sectors) {
-		sector.second->deleteBlocks(&used);
-		delete sector.second;
+	{
+		std::lock_guard<std::mutex> lock(m_blocks_mutex);
+		for (auto &block_entry : m_blocks) {
+			MapBlock *block = block_entry.second;
+			if (block) {
+				if (block->refcount() > 0) {
+					used++;
+				}
+				delete block;
+			}
+		}
+		m_blocks.clear();
 	}
-	m_sectors.clear();
 
 	if (used > 0) {
 #ifdef NDEBUG
@@ -65,40 +73,12 @@ void Map::dispatchEvent(const MapEditEvent &event)
 	}
 }
 
-MapSector * Map::getSectorNoGenerateNoLock(v2s16 p)
-{
-	if(m_sector_cache != NULL && p == m_sector_cache_p){
-		MapSector * sector = m_sector_cache;
-		return sector;
-	}
-
-	auto n = m_sectors.find(p);
-
-	if (n == m_sectors.end())
-		return NULL;
-
-	MapSector *sector = n->second;
-
-	// Cache the last result
-	m_sector_cache_p = p;
-	m_sector_cache = sector;
-
-	return sector;
-}
-
-MapSector *Map::getSectorNoGenerate(v2s16 p)
-{
-	return getSectorNoGenerateNoLock(p);
-}
 
 MapBlock *Map::getBlockNoCreateNoEx(v3s16 p3d)
 {
-	v2s16 p2d(p3d.X, p3d.Z);
-	MapSector *sector = getSectorNoGenerate(p2d);
-	if (!sector)
-		return nullptr;
-	MapBlock *block = sector->getBlockNoCreateNoEx(p3d.Y);
-	return block;
+	// Legacy wrapper: use Phase 0 for backwards compatibility
+	v4s16 pos4d(p3d.X, p3d.Y, p3d.Z, 0);
+	return getBlockNoCreateNoEx(pos4d);
 }
 
 MapBlock *Map::getBlockNoCreate(v3s16 p3d)
@@ -109,25 +89,57 @@ MapBlock *Map::getBlockNoCreate(v3s16 p3d)
 	return block;
 }
 
+MapBlock *Map::getBlockNoCreateNoEx(const v4s16& pos)
+{
+	std::lock_guard<std::mutex> lock(m_blocks_mutex);
+	auto it = m_blocks.find(pos);
+	return (it != m_blocks.end()) ? it->second : nullptr;
+}
+
+MapBlock *Map::getBlockNoCreate(const v4s16& pos)
+{
+	std::lock_guard<std::mutex> lock(m_blocks_mutex);
+	MapBlock *block = getBlockNoCreateNoEx(pos);
+	if(block == NULL)
+		throw InvalidPositionException();
+	return block;
+}
+
 bool Map::isValidPosition(v3s16 p)
 {
-	v3s16 blockpos = getNodeBlockPos(p);
-	MapBlock *block = getBlockNoCreateNoEx(blockpos);
+	// Legacy wrapper: use Phase 0 for backwards compatibility
+	v4s16 pos4d(p.X, p.Y, p.Z, 0);
+	return isValidPosition(pos4d);
+}
+
+bool Map::isValidPosition(const v4s16& pos)
+{
+	v3s16 blockpos = getNodeBlockPos(pos.toV3s16());
+	v4s16 blockpos4d(blockpos.X, blockpos.Y, blockpos.Z, pos.P);
+	MapBlock *block = getBlockNoCreateNoEx(blockpos4d);
 	return (block != NULL);
 }
 
 // Returns a CONTENT_IGNORE node if not found
 MapNode Map::getNode(v3s16 p, bool *is_valid_position)
 {
-	v3s16 blockpos = getNodeBlockPos(p);
-	MapBlock *block = getBlockNoCreateNoEx(blockpos);
+	// Legacy wrapper: use Phase 0 for backwards compatibility
+	v4s16 pos4d(p.X, p.Y, p.Z, 0);
+	return getNode(pos4d, is_valid_position);
+}
+
+MapNode Map::getNode(const v4s16& pos, bool *is_valid_position)
+{
+	v3s16 blockpos = getNodeBlockPos(pos.toV3s16());
+	v4s16 blockpos4d(blockpos.X, blockpos.Y, blockpos.Z, pos.P);
+	MapBlock *block = getBlockNoCreateNoEx(blockpos4d);
 	if (block == NULL) {
 		if (is_valid_position != NULL)
 			*is_valid_position = false;
 		return {CONTENT_IGNORE};
 	}
 
-	v3s16 relpos = p - blockpos*MAP_BLOCKSIZE;
+	v3s16 relpos = pos.toV3s16() - blockpos*MAP_BLOCKSIZE;
 	MapNode node = block->getNodeNoCheck(relpos);
 	if (is_valid_position != NULL)
 		*is_valid_position = true;
@@ -153,10 +165,35 @@ static void set_node_in_block(const NodeDefManager *nodedef, MapBlock *block,
 // throws InvalidPositionException if not found
 void Map::setNode(v3s16 p, MapNode n)
 {
-	v3s16 blockpos = getNodeBlockPos(p);
-	MapBlock *block = getBlockNoCreate(blockpos);
-	v3s16 relpos = p - blockpos*MAP_BLOCKSIZE;
+	// Legacy wrapper: use Phase 0 for backwards compatibility
+	v4s16 pos4d(p.X, p.Y, p.Z, 0);
+	setNode(pos4d, n);
+}
+
+void Map::setNode(const v4s16& pos, MapNode n)
+{
+	v3s16 blockpos = getNodeBlockPos(pos.toV3s16());
+	v4s16 blockpos4d(blockpos.X, blockpos.Y, blockpos.Z, pos.P);
+	MapBlock *block = getBlockNoCreate(blockpos4d);
+	v3s16 relpos = pos.toV3s16() - blockpos*MAP_BLOCKSIZE;
 	set_node_in_block(m_gamedef->ndef(), block, relpos, n);
+}
+
+bool Map::deleteBlock(const v4s16& pos)
+{
+	std::lock_guard<std::mutex> lock(m_blocks_mutex);
+	// Remove from phase-aware storage to prevent memory leaks
+	auto it = m_blocks.find(pos);
+	if (it != m_blocks.end()) {
+		MapBlock *block = it->second;
+		if (block) {
+			// Mark as orphaned before deletion
+			block->makeOrphan();
+		}
+		m_blocks.erase(it);
+		return true;
+	}
+	return false;
 }
 
 void Map::addNodeAndUpdate(v3s16 p, MapNode n,
@@ -266,11 +303,11 @@ bool Map::removeNodeWithEvent(v3s16 p)
 }
 
 struct TimeOrderedMapBlock {
-	MapSector *sect;
+	v4s16 pos;
 	MapBlock *block;
 
-	TimeOrderedMapBlock(MapSector *sect, MapBlock *block) :
-		sect(sect),
+	TimeOrderedMapBlock(v4s16 pos, MapBlock *block) :
+		pos(pos),
 		block(block)
 	{}
 
@@ -281,7 +318,7 @@ struct TimeOrderedMapBlock {
 };
 
 /*
-	Updates usage timers
+	Updates usage timers for phase-aware block storage
 */
 void Map::timerUpdate(float dtime, float unload_timeout, s32 max_loaded_blocks,
 		std::vector<v3s16> *unloaded_blocks)
@@ -291,7 +328,6 @@ void Map::timerUpdate(float dtime, float unload_timeout, s32 max_loaded_blocks,
 	// Profile modified reasons
 	Profiler modprofiler;
 
-	std::vector<v2s16> sector_deletion_queue;
 	u32 deleted_blocks_count = 0;
 	u32 saved_blocks_count = 0;
 	u32 block_count_all = 0;
@@ -300,100 +336,93 @@ void Map::timerUpdate(float dtime, float unload_timeout, s32 max_loaded_blocks,
 	const auto start_time = porting::getTimeUs();
 	beginSave();
 
-	// If there is no practical limit, we spare creation of mapblock_queue
-	if (max_loaded_blocks < 0) {
-		MapBlockVect blocks;
-		for (auto &sector_it : m_sectors) {
-			MapSector *sector = sector_it.second;
+	std::vector<v4s16> block_deletion_queue;
 
-			bool all_blocks_deleted = true;
+	{
+		std::lock_guard<std::mutex> lock(m_blocks_mutex);
 
-			blocks.clear();
-			sector->getBlocks(blocks);
+		// If there is no practical limit, we spare creation of mapblock_queue
+		if (max_loaded_blocks < 0) {
+			// Simple iteration without priority queue
+			for (auto &block_entry : m_blocks) {
+				v4s16 pos = block_entry.first;
+				MapBlock *block = block_entry.second;
 
-			for (MapBlock *block : blocks) {
 				block->incrementUsageTimer(dtime);
 
-				if (block->refGet() == 0
-						&& block->getUsageTimer() > unload_timeout) {
-					v3s16 p = block->getPos();
-
+				if (block->refGet() == 0 && block->getUsageTimer() > unload_timeout) {
 					// Save if modified
-					if (block->getModified() != MOD_STATE_CLEAN
-							&& save_before_unloading) {
+					if (block->getModified() != MOD_STATE_CLEAN && save_before_unloading) {
 						modprofiler.add(block->getModifiedReasonString(), 1);
 						if (!saveBlock(block))
 							continue;
 						saved_blocks_count++;
 					}
 
-					// Delete from memory
-					sector->deleteBlock(block);
-
-					if (unloaded_blocks)
-						unloaded_blocks->push_back(p);
+					// Mark for deletion
+					block_deletion_queue.push_back(pos);
 
 					deleted_blocks_count++;
 				} else {
-					all_blocks_deleted = false;
 					block_count_all++;
 				}
 			}
-
-			// Delete sector if we emptied it
-			if (all_blocks_deleted) {
-				sector_deletion_queue.push_back(sector_it.first);
-			}
-		}
-	} else {
-		std::priority_queue<TimeOrderedMapBlock> mapblock_queue;
-		for (auto &sector_it : m_sectors) {
-			const MapSector *sector = sector_it.second;
-			for (const auto &entry : sector->getBlocks()) {
-				MapBlock *block = entry.second.get();
+		} else {
+			// Use priority queue for LRU eviction
+			std::priority_queue<TimeOrderedMapBlock> mapblock_queue;
+			for (auto &block_entry : m_blocks) {
+				MapBlock *block = block_entry.second;
 				block->incrementUsageTimer(dtime);
-				mapblock_queue.push(TimeOrderedMapBlock(const_cast<MapSector*>(sector), block));
+				mapblock_queue.push(TimeOrderedMapBlock(block_entry.first, block));
 			}
-		}
-		block_count_all = mapblock_queue.size();
+			block_count_all = mapblock_queue.size();
 
-		// Delete old blocks, and blocks over the limit from the memory
-		while (!mapblock_queue.empty() && ((s32)mapblock_queue.size() > max_loaded_blocks
-				|| mapblock_queue.top().block->getUsageTimer() > unload_timeout)) {
-			TimeOrderedMapBlock b = mapblock_queue.top();
-			mapblock_queue.pop();
+			// Delete old blocks, and blocks over limit from memory
+			while (!mapblock_queue.empty() && ((s32)mapblock_queue.size() > max_loaded_blocks
+					|| mapblock_queue.top().block->getUsageTimer() > unload_timeout)) {
+				TimeOrderedMapBlock b = mapblock_queue.top();
+				mapblock_queue.pop();
 
-			MapBlock *block = b.block;
+				MapBlock *block = b.block;
 
-			if (block->refGet() != 0) {
-				locked_blocks++;
-				continue;
-			}
-
-			v3s16 p = block->getPos();
-
-			// Save if modified
-			if (block->getModified() != MOD_STATE_CLEAN && save_before_unloading) {
-				modprofiler.add(block->getModifiedReasonString(), 1);
-				if (!saveBlock(block))
+				if (block->refGet() != 0) {
+					locked_blocks++;
 					continue;
-				saved_blocks_count++;
+				}
+
+				// Save if modified
+				if (block->getModified() != MOD_STATE_CLEAN && save_before_unloading) {
+					modprofiler.add(block->getModifiedReasonString(), 1);
+					if (!saveBlock(block))
+						continue;
+					saved_blocks_count++;
+				}
+
+				// Mark for deletion
+				block_deletion_queue.push_back(b.pos);
+
+				deleted_blocks_count++;
+				block_count_all--;
 			}
-
-			// Delete from memory
-			b.sect->deleteBlock(block);
-
-			if (unloaded_blocks)
-				unloaded_blocks->push_back(p);
-
-			deleted_blocks_count++;
-			block_count_all--;
 		}
 
-		// Delete empty sectors
-		for (auto &sector_it : m_sectors) {
-			if (sector_it.second->empty()) {
-				sector_deletion_queue.push_back(sector_it.first);
+		// Actually delete the marked blocks
+		for (v4s16 pos : block_deletion_queue) {
+			auto it = m_blocks.find(pos);
+			if (it != m_blocks.end()) {
+				MapBlock *block = it->second;
+				if (block) {
+					// Orphan the block before deletion
+					block->makeOrphan();
+					
+					// Add to unloaded blocks list (convert to v3s16 for compatibility)
+					if (unloaded_blocks) {
+						unloaded_blocks->push_back(v3s16(pos.X, pos.Y, pos.Z));
+					}
+					
+					delete block;
+				}
+				m_blocks.erase(it);
 			}
 		}
 	}
@@ -402,9 +431,6 @@ void Map::timerUpdate(float dtime, float unload_timeout, s32 max_loaded_blocks,
 	const auto end_time = porting::getTimeUs();
 
 	reportMetrics(end_time - start_time, saved_blocks_count, block_count_all);
-
-	// Finally delete the empty sectors
-	deleteSectors(sector_deletion_queue);
 
 	if(deleted_blocks_count != 0)
 	{
@@ -428,18 +454,6 @@ void Map::unloadUnreferencedBlocks(std::vector<v3s16> *unloaded_blocks)
 	timerUpdate(0, -1, 0, unloaded_blocks);
 }
 
-void Map::deleteSectors(const std::vector<v2s16> &sectorList)
-{
-	for (v2s16 j : sectorList) {
-		MapSector *sector = m_sectors[j];
-		// If sector is in sector cache, remove it from there
-		if (m_sector_cache == sector)
-			m_sector_cache = nullptr;
-		// Remove from map and delete
-		m_sectors.erase(j);
-		delete sector;
-	}
-}
 
 void Map::PrintInfo(std::ostream &out)
 {

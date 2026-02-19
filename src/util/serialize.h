@@ -229,6 +229,16 @@ inline v3s16 readV3S16(const u8 *data)
 	return p;
 }
 
+inline v4s16 readV4S16(const u8 *data)
+{
+	v4s16 p;
+	p.X = readS16(&data[0]);
+	p.Y = readS16(&data[2]);
+	p.Z = readS16(&data[4]);
+	p.P = readS16(&data[6]);
+	return p;
+}
+
 inline v2s32 readV2S32(const u8 *data)
 {
 	v2s32 p;
@@ -338,6 +348,14 @@ inline void writeV3S16(u8 *data, v3s16 p)
 	writeS16(&data[0], p.X);
 	writeS16(&data[2], p.Y);
 	writeS16(&data[4], p.Z);
+}
+
+inline void writeV4S16(u8 *data, v4s16 p)
+{
+	writeS16(&data[0], p.X);
+	writeS16(&data[2], p.Y);
+	writeS16(&data[4], p.Z);
+	writeS16(&data[6], p.P);
 }
 
 inline void writeV2S32(u8 *data, v2s32 p)

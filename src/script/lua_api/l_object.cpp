@@ -176,6 +176,73 @@ int ObjectRef::l_add_pos(lua_State *L)
 	return 0;
 }
 
+// get_phase(self)
+int ObjectRef::l_get_phase(lua_State *L)
+{
+	NO_MAP_LOCK_REQUIRED;
+	ObjectRef *ref = checkObject<ObjectRef>(L, 1);
+	ServerActiveObject *sao = getobject(ref);
+	if (sao == nullptr)
+		return 0;
+
+	// Get phase from player if available
+	Player *player = sao->getType() == ACTIVEOBJECT_TYPE_PLAYER ? 
+		dynamic_cast<PlayerSAO*>(sao)->getPlayer() : nullptr;
+	if (player) {
+		lua_pushinteger(L, player->getCurrentPhase());
+	} else {
+		lua_pushinteger(L, 0); // Default phase for non-players
+	}
+	return 1;
+}
+
+// set_phase(self, phase)
+int ObjectRef::l_set_phase(lua_State *L)
+{
+	NO_MAP_LOCK_REQUIRED;
+	ObjectRef *ref = checkObject<ObjectRef>(L, 1);
+	ServerActiveObject *sao = getobject(ref);
+	if (sao == nullptr)
+		return 0;
+
+	Player *player = sao->getType() == ACTIVEOBJECT_TYPE_PLAYER ? 
+		dynamic_cast<PlayerSAO*>(sao)->getPlayer() : nullptr;
+	if (player) {
+		s16 new_phase = luaL_checkinteger(L, 2);
+		player->changePhase(new_phase);
+	}
+	return 0;
+}
+
+// get_pos_4d(self)
+int ObjectRef::l_get_pos_4d(lua_State *L)
+{
+	NO_MAP_LOCK_REQUIRED;
+	ObjectRef *ref = checkObject<ObjectRef>(L, 1);
+	ServerActiveObject *sao = getobject(ref);
+	if (sao == nullptr)
+		return 0;
+
+	Player *player = sao->getType() == ACTIVEOBJECT_TYPE_PLAYER ? 
+		dynamic_cast<PlayerSAO*>(sao)->getPlayer() : nullptr;
+	if (player) {
+		v4s16 pos4d = player->getPosition4D();
+		lua_pushinteger(L, pos4d.X);
+		lua_pushinteger(L, pos4d.Y);
+		lua_pushinteger(L, pos4d.Z);
+		lua_pushinteger(L, pos4d.P);
+		return 4;
+	}
+	
+	// Fallback to 3D position for non-players
+	v3f pos = sao->getBasePosition() / BS;
+	lua_pushnumber(L, pos.X);
+	lua_pushnumber(L, pos.Y);
+	lua_pushnumber(L, pos.Z);
+	lua_pushinteger(L, 0); // Default phase
+	return 4;
+}
+
 // move_to(self, pos, continuous)
 int ObjectRef::l_move_to(lua_State *L)
 {
@@ -2978,6 +3045,9 @@ luaL_Reg ObjectRef::methods[] = {
 	luamethod(ObjectRef, get_flags),
 	luamethod(ObjectRef, set_camera),
 	luamethod(ObjectRef, get_camera),
+	luamethod(ObjectRef, get_phase),
+	luamethod(ObjectRef, set_phase),
+	luamethod(ObjectRef, get_pos_4d),
 
 	{0,0}
 };

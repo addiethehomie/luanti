@@ -1268,6 +1268,9 @@ static bool migrate_map_database(const GameParams &game_params, const Settings &
 	volatile auto &kill = *porting::signal_handler_killstatus();
 
 	std::vector<v3s16> blocks;
+	std::vector<v4s16> blocks_4d;
+	
+	// Migrate legacy blocks (Phase 0)
 	old_db->listAllLoadableBlocks(blocks);
 	new_db->beginSave();
 	for (auto it = blocks.begin(); it != blocks.end(); ++it) {
@@ -1276,7 +1279,9 @@ static bool migrate_map_database(const GameParams &game_params, const Settings &
 		std::string data;
 		old_db->loadBlock(*it, &data);
 		if (!data.empty()) {
-			new_db->saveBlock(*it, data);
+			// Save as Phase 0 in unified schema
+			v4s16 pos4d(it->X, it->Y, it->Z, 0);
+			new_db->saveBlock(pos4d, data);
 			count++;
 		} else {
 			errorstream << "Failed to load block " << *it << ", skipping it." << std::endl;
@@ -1287,6 +1292,39 @@ static bool migrate_map_database(const GameParams &game_params, const Settings &
 			new_db->endSave();
 			new_db->beginSave();
 			last_update_time = porting::getTimeS();
+		}
+	}
+	
+	// Migrate phase-aware blocks (if old database supports them)
+	if (old_db->listAllLoadableBlocks) {
+		try {
+			// Try to get phase-aware blocks from old database
+			// This will only work if the old database has the dual-table schema
+			std::vector<v4s16> phase_blocks;
+			old_db->listAllLoadableBlocks(phase_blocks);
+			
+			for (auto it = phase_blocks.begin(); it != phase_blocks.end(); ++it) {
+				if (kill) return false;
+
+				std::string data;
+				old_db->loadBlock(*it, &data);
+				if (!data.empty()) {
+					new_db->saveBlock(*it, data);
+					count++;
+				} else {
+					errorstream << "Failed to load phase block " << *it << ", skipping it." << std::endl;
+				}
+				if (porting::getTimeS() - last_update_time >= 1) {
+					std::cerr << " Migrated " << count << " blocks, "
+						<< (100.0 * count / (blocks.size() + phase_blocks.size())) << "% completed.\r" << std::flush;
+					new_db->endSave();
+					new_db->beginSave();
+					last_update_time = porting::getTimeS();
+				}
+			}
+		} catch (...) {
+			// Old database doesn't support phase-aware blocks, continue with legacy only
+			infostream << "Old database doesn't support phase-aware blocks, migrating legacy only." << std::endl;
 		}
 	}
 	std::cerr << std::endl;

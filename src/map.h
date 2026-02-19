@@ -8,6 +8,7 @@
 #include <ostream>
 #include <set>
 #include <unordered_map>
+#include <mutex>
 
 #include "irrlichttypes_bloated.h"
 #include "mapblock.h" // for forEachNodeInArea
@@ -125,6 +126,15 @@ public:
 	// Returns NULL if not found
 	MapBlock * getBlockNoCreateNoEx(v3s16 p);
 
+	// Phase-aware block operations
+	MapBlock * getBlockNoCreate(const v4s16& pos);
+	MapBlock * getBlockNoCreateNoEx(const v4s16& pos);
+	void setNode(const v4s16& pos, MapNode n);
+	MapNode getNode(const v4s16& pos, bool *is_valid_position = NULL);
+	
+	// Phase-aware block deletion (prevents memory leaks)
+	bool deleteBlock(const v4s16& pos);
+
 	/* Server overrides */
 	virtual MapBlock * emergeBlock(v3s16 p, bool create_blank=true)
 	{ return getBlockNoCreateNoEx(p); }
@@ -132,6 +142,7 @@ public:
 	inline const NodeDefManager * getNodeDefManager() { return m_nodedef; }
 
 	bool isValidPosition(v3s16 p);
+	bool isValidPosition(const v4s16& pos);
 
 	// throws InvalidPositionException if not found
 	void setNode(v3s16 p, MapNode n);
@@ -140,6 +151,7 @@ public:
 	// If is_valid_position is not NULL then this will be set to true if the
 	// position is valid, otherwise false
 	MapNode getNode(v3s16 p, bool *is_valid_position = NULL);
+	MapNode getNode(const v4s16& pos, bool *is_valid_position = NULL);
 
 	/*
 		These handle lighting but not faces.
@@ -186,11 +198,6 @@ public:
 		Saves modified blocks before unloading if possible.
 	*/
 	void unloadUnreferencedBlocks(std::vector<v3s16> *unloaded_blocks=NULL);
-
-	// Deletes sectors and their blocks from memory
-	// Takes cache into account
-	// If deleted sector is in sector cache, clears cache
-	void deleteSectors(const std::vector<v2s16> &list);
 
 	// For debug printing. Prints "Map: ", "ServerMap: " or "ClientMap: "
 	virtual void PrintInfo(std::ostream &out);
@@ -278,11 +285,11 @@ protected:
 
 	std::set<MapEventReceiver*> m_event_receivers;
 
-	std::unordered_map<v2s16, MapSector*> m_sectors;
-
-	// Be sure to set this to NULL when the cached sector is deleted
-	MapSector *m_sector_cache = nullptr;
-	v2s16 m_sector_cache_p;
+	// Phase-aware block storage - maps 4D coordinates to blocks
+	std::unordered_map<v4s16, MapBlock*, v4s16::Hash> m_blocks;
+	
+	// Mutex for phase-aware block storage (thread safety)
+	std::mutex m_blocks_mutex;
 
 	// This stores the properties of the nodes on the map.
 	const NodeDefManager *m_nodedef;

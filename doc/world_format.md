@@ -288,9 +288,12 @@ that part.
 
 ```sql
 CREATE TABLE `blocks` (
-    `x` INTEGER, `y` INTEGER, `z` INTEGER,
+    `x` INTEGER,
+    `y` INTEGER, 
+    `z` INTEGER,
+    `p` INTEGER DEFAULT 0,  -- Phase column (0 for legacy compatibility)
     `data` BLOB NOT NULL,
-    PRIMARY KEY (`x`, `z`, `y`)
+    PRIMARY KEY (`x`, `z`, `y`, `p`)
 );
 ```
 

@@ -235,12 +235,10 @@ void MapDatabaseSQLite3::createDatabase()
 			"`x` INTEGER,"
 			"`y` INTEGER,"
 			"`z` INTEGER,"
+			"`p` INTEGER DEFAULT 0,  -- Phase column (0 for legacy compatibility)"
 			"`data` BLOB NOT NULL,"
-			// Declaring a primary key automatically creates an index and the
-			// order largely dictates which range operations can be sped up.
-			// see also: <https://www.sqlite.org/optoverview.html#skipscan>
-			// Putting XZ before Y matches our MapSector abstraction.
-			"PRIMARY KEY (`x`, `z`, `y`)"
+			// Unified primary key includes phase dimension
+			"PRIMARY KEY (`x`, `z`, `y`, `p`)"
 		");\n"
 	;
 	SQLOK(sqlite3_exec(m_database, schema, NULL, NULL, NULL),
@@ -254,30 +252,52 @@ void MapDatabaseSQLite3::initStatements()
 	infostream << "MapDatabaseSQLite3: split column format = "
 		<< (m_new_format ? "yes" : "no") << std::endl;
 
-	if (m_new_format) {
-		PREPARE_STATEMENT(read, "SELECT `data` FROM `blocks` WHERE `x` = ? AND `y` = ? AND `z` = ? LIMIT 1");
-		PREPARE_STATEMENT(write, "REPLACE INTO `blocks` (`x`, `y`, `z`, `data`) VALUES (?, ?, ?, ?)");
-		PREPARE_STATEMENT(delete, "DELETE FROM `blocks` WHERE `x` = ? AND `y` = ? AND `z` = ?");
-		PREPARE_STATEMENT(list, "SELECT `x`, `y`, `z` FROM `blocks`");
-	} else {
-		PREPARE_STATEMENT(read, "SELECT `data` FROM `blocks` WHERE `pos` = ? LIMIT 1");
-		PREPARE_STATEMENT(write, "REPLACE INTO `blocks` (`pos`, `data`) VALUES (?, ?)");
-		PREPARE_STATEMENT(delete, "DELETE FROM `blocks` WHERE `pos` = ?");
-		PREPARE_STATEMENT(list, "SELECT `pos` FROM `blocks`");
+	// Check for phase column support and migrate if needed
+	bool has_phase_column = checkColumn("blocks", "p");
+	if (!has_phase_column) {
+		infostream << "MapDatabaseSQLite3: Adding phase column for 4D support" << std::endl;
+		SQLOK(sqlite3_exec(m_database, 
+			"ALTER TABLE `blocks` ADD COLUMN `p` INTEGER DEFAULT 0", 
+			NULL, NULL, NULL),
+			"Failed to add phase column");
+		
+		// Update primary key to include phase dimension
+		SQLOK(sqlite3_exec(m_database, 
+			"CREATE UNIQUE INDEX IF NOT EXISTS `blocks_idx` ON `blocks` (`x`, `z`, `y`, `p`)", 
+			NULL, NULL, NULL),
+			"Failed to create unified index");
 	}
-}
+
+	// Unified schema supports both legacy (p=0) and phase-aware operations
+	if (m_new_format) {
+		// New format with separate columns and phase support
+		PREPARE_STATEMENT(read, "SELECT `data` FROM `blocks` WHERE `x` = ? AND `y` = ? AND `z` = ? AND `p` = ? LIMIT 1");
+		PREPARE_STATEMENT(write, "REPLACE INTO `blocks` (`x`, `y`, `z`, `p`, `data`) VALUES (?, ?, ?, ?, ?)");
+		PREPARE_STATEMENT(delete, "DELETE FROM `blocks` WHERE `x` = ? AND `y` = ? AND `z` = ? AND `p` = ?");
+		PREPARE_STATEMENT(list, "SELECT `x`, `y`, `z`, `p` FROM `blocks`");
+	} else {
+		// Legacy format - convert to unified on first write
+		PREPARE_STATEMENT(read, "SELECT `data` FROM `blocks` WHERE `pos` = ? LIMIT 1");
+	}
 
 inline int MapDatabaseSQLite3::bindPos(sqlite3_stmt *stmt, v3s16 pos, int index)
 {
-	if (m_new_format) {
-		int_to_sqlite(stmt, index, pos.X);
-		int_to_sqlite(stmt, index + 1, pos.Y);
-		int_to_sqlite(stmt, index + 2, pos.Z);
-		return index + 3;
-	} else {
-		int64_to_sqlite(stmt, index, getBlockAsInteger(pos));
-		return index + 1;
-	}
+	// Unified format: bind x, y, z, p=0 for legacy compatibility
+	int_to_sqlite(stmt, index, pos.X);
+	int_to_sqlite(stmt, index + 1, pos.Y);
+	int_to_sqlite(stmt, index + 2, pos.Z);
+	int_to_sqlite(stmt, index + 3, 0);  // Phase 0 for legacy
+	return index + 4;
+}
+
+inline int MapDatabaseSQLite3::bindPos(sqlite3_stmt *stmt, v4s16 pos, int index)
+{
+	// Unified format: bind x, y, z, p
+	int_to_sqlite(stmt, index, pos.X);
+	int_to_sqlite(stmt, index + 1, pos.Y);
+	int_to_sqlite(stmt, index + 2, pos.Z);
+	int_to_sqlite(stmt, index + 3, pos.P);
+	return index + 4;
 }
 
 bool MapDatabaseSQLite3::deleteBlock(const v3s16 &pos)
@@ -341,6 +361,67 @@ void MapDatabaseSQLite3::listAllLoadableBlocks(std::vector<v3s16> &dst)
 		} else {
 			p = getIntegerAsBlock(sqlite_to_int64(m_stmt_list, 0));
 		}
+		dst.push_back(p);
+	}
+
+	sqlite3_reset(m_stmt_list);
+}
+
+// Phase-aware 4D methods now use unified schema
+bool MapDatabaseSQLite3::saveBlock(const v4s16 &pos, std::string_view data)
+{
+	verifyDatabase();
+
+	bindPos(m_stmt_write, pos);
+	blob_to_sqlite(m_stmt_write, 4, data);
+
+	bool good = sqlite3_step(m_stmt_write) == SQLITE_DONE;
+	sqlite3_reset(m_stmt_write);
+
+	return good;
+}
+
+void MapDatabaseSQLite3::loadBlock(const v4s16 &pos, std::string *block)
+{
+	verifyDatabase();
+
+	bindPos(m_stmt_read, pos);
+
+	if (sqlite3_step(m_stmt_read) == SQLITE_ROW) {
+		*block = sqlite_to_blob(m_stmt_read, 0);
+	} else {
+		block->clear();
+	}
+
+	sqlite3_reset(m_stmt_read);
+}
+
+bool MapDatabaseSQLite3::deleteBlock(const v4s16 &pos)
+{
+	verifyDatabase();
+
+	bindPos(m_stmt_delete, pos);
+
+	bool good = sqlite3_step(m_stmt_delete) == SQLITE_DONE;
+	sqlite3_reset(m_stmt_delete);
+
+	if (!good) {
+		warningstream << "deleteBlock: Failed to delete block "
+			<< pos << ": " << sqlite3_errmsg(m_database) << std::endl;
+	}
+	return good;
+}
+
+void MapDatabaseSQLite3::listAllLoadableBlocks(std::vector<v4s16> &dst)
+{
+	verifyDatabase();
+
+	v4s16 p;
+	while (sqlite3_step(m_stmt_list) == SQLITE_ROW) {
+		p.X = sqlite_to_int(m_stmt_list, 0);
+		p.Y = sqlite_to_int(m_stmt_list, 1);
+		p.Z = sqlite_to_int(m_stmt_list, 2);
+		p.P = sqlite_to_int(m_stmt_list, 3);
 		dst.push_back(p);
 	}
 

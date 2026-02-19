@@ -145,6 +145,21 @@ public:
 
 	DISABLE_CLASS_COPY(Player);
 
+	// Phase-aware position management
+	v4s16 getPosition4D() const { return m_position; }
+	s16 getCurrentPhase() const { return m_current_phase; }
+	
+	// Legacy position methods (backwards compatible)
+	virtual v3f getPosition() const = 0;
+	v3s16 getPositionAsInt() const { return floatToInt(getPosition(), BS); }
+	
+	// Phase change method
+	virtual void changePhase(s16 new_phase) {
+		m_current_phase = new_phase;
+		m_position.P = new_phase;
+		// Server implementations should override this to handle world state reload
+	}
+
 	// in BS-space
 	inline void setSpeed(v3f speed)
 	{
@@ -233,6 +248,10 @@ protected:
 	v3f m_speed; // velocity; in BS-space
 	u16 m_wield_index = 0;
 	PlayerFovSpec m_fov_override_spec = { 0.0f, false, 0.0f };
+
+	// Phase Dimension System: 4D position and current phase tracking
+	v4s16 m_position{0, 0, 0, 0};  // Default to Phase 0
+	s16 m_current_phase = 0;        // Explicit phase tracking
 
 private:
 	std::vector<HudElement *> hud;

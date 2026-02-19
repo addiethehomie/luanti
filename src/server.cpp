@@ -4498,3 +4498,39 @@ u16 Server::getProtocolVersionMax()
 {
 	return LATEST_PROTOCOL_VERSION;
 }
+
+// Phase Dimension System: Handle player phase changes
+void Server::handlePlayerPhaseChange(RemotePlayer *player, s16 new_phase)
+{
+	if (!player) return;
+	
+	PlayerSAO *sao = player->getPlayerSAO();
+	if (!sao) return;
+	
+	// Send active object remove messages for current phase
+	SendActiveObjectRemoveMessages(sao);
+	
+	// Send map blocks from new phase around player position
+	v3f player_pos = sao->getBasePosition();
+	v3s16 block_pos = floatToInt(player_pos, BS);
+	
+	// Load and send blocks from new phase
+	v4s16 block_pos_4d(block_pos.X, block_pos.Y, block_pos.Z, new_phase);
+	
+	// Emerge blocks in new phase around player
+	for (s16 x = -1; x <= 1; x++) {
+		for (s16 y = -1; y <= 1; y++) {
+			for (s16 z = -1; z <= 1; z++) {
+				v4s16 emerge_pos(block_pos.X + x, block_pos.Y + y, block_pos.Z + z, new_phase);
+				MapBlock *block = m_env->getMap().emergeBlock(emerge_pos, false);
+				if (block) {
+					// Send block to client if in range
+					m_clients.sendBlock(block_pos.X + x, block_pos.Y + y, block_pos.Z + z, block);
+				}
+			}
+		}
+	}
+	
+	// Send updated position to client
+	SendMovePlayer(sao);
+}

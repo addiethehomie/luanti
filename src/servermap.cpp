@@ -446,6 +446,66 @@ MapBlock * ServerMap::emergeBlock(v3s16 p, bool create_blank)
 	return NULL;
 }
 
+MapBlock * ServerMap::emergeBlock(v4s16 p, bool create_blank)
+{
+	// Check memory first with phase-aware lookup (thread-safe)
+	{
+		std::lock_guard<std::mutex> lock(m_blocks_mutex);
+		MapBlock *block = getBlockNoCreateNoEx(p);
+		if (block)
+			return block;
+	}
+
+	// Try loading from phase-aware database
+	{
+		MapBlock *block = loadBlock(p);
+		if(block)
+			return block;
+	}
+
+	if (create_blank) {
+		try {
+			// Create sector in phase-aware context
+			v2s16 sector_pos(p.X, p.Z);
+			MapSector *sector = createSector(sector_pos);
+			if (!sector) return NULL;
+			
+			// Create blank block directly in phase-aware storage
+			// This prevents phase bleed-through through sector's phase-agnostic m_blocks
+			v3s16 blockpos_map(p.X, p.Y, p.Z);
+			auto block_u = std::make_unique<MapBlock>(blockpos_map, m_gamedef);
+			MapBlock *block = block_u.get();
+			
+			// Store in phase-aware m_blocks map with thread safety
+			{
+				std::lock_guard<std::mutex> lock(m_blocks_mutex);
+				m_blocks[p] = block;
+			}
+			
+			if (block) {
+				// Store phase information and modify seed for generation
+				block->setIsGenerated(false);
+				
+				// If this block gets generated, use phase as seed modifier
+				// Phase 0 = original seed, other phases = seed + phase_id
+				if (p.P != 0 && m_emerge) {
+					u64 base_seed = getSeed();  // Use full 64-bit seed
+					u16 phase_id = (u16)p.P;         // Convert to unsigned for safe addition
+					
+					// Safe phase seed modification using 64-bit arithmetic
+					u64 phase_modified_seed = base_seed + phase_id;
+					
+					// Temporarily modify mapgen seed for this phase (truncate to 32-bit for compatibility)
+					m_emerge->mapgen->seed = (s32)phase_modified_seed;
+				}
+				return block;
+			}
+		} catch (InvalidPositionException &e) {}
+	}
+
+	return NULL;
+}
+
 MapBlock *ServerMap::getBlockOrEmerge(v3s16 p3d, bool generate)
 {
 	MapBlock *block = getBlockNoCreateNoEx(p3d);
@@ -803,6 +863,20 @@ MapBlock* ServerMap::loadBlock(v3s16 blockpos)
 
 	if (!data.empty())
 		return loadBlock(data, blockpos);
+	return getBlockNoCreateNoEx(blockpos);
+}
+
+MapBlock* ServerMap::loadBlock(v4s16 blockpos)
+{
+	std::string data;
+	{
+		ScopeProfiler sp(g_profiler, "ServerMap: load block 4D - sync (sum)");
+		MutexAutoLock dblock(m_db.mutex);
+		m_db.loadBlock(blockpos, data);
+	}
+
+	if (!data.empty())
+		return loadBlock(data, blockpos.toV3s16());
 	return getBlockNoCreateNoEx(blockpos);
 }
 

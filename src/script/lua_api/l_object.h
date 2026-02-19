@@ -73,6 +73,15 @@ private:
 	// add_pos(self, pos)
 	static int l_add_pos(lua_State *L);
 
+	// get_phase(self)
+	static int l_get_phase(lua_State *L);
+
+	// set_phase(self, phase)
+	static int l_set_phase(lua_State *L);
+
+	// get_pos_4d(self)
+	static int l_get_pos_4d(lua_State *L);
+
 	// move_to(self, pos, continuous)
 	static int l_move_to(lua_State *L);
 

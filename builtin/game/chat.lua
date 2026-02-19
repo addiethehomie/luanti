@@ -572,8 +572,8 @@ local function teleport_to_player(name, target_name)
 end
 
 core.register_chatcommand("teleport", {
-	params = S("<X>,<Y>,<Z> | <to_name> | <name> <X>,<Y>,<Z> | <name> <to_name>"),
-	description = S("Teleport to position or player"),
+	params = S("<X>,<Y>,<Z>[,<P>] | <to_name> | <name> <X>,<Y>,<Z>[,<P>] | <name> <to_name>"),
+	description = S("Teleport to position or player (4D coordinates with optional phase)"),
 	privs = {teleport=true},
 	func = function(name, param)
 		local player = core.get_player_by_name(name)
@@ -582,6 +582,17 @@ core.register_chatcommand("teleport", {
 			relpos = player:get_pos()
 		end
 		local p = {}
+		p.x, p.y, p.z, p.p = string.match(param, "^([%d.~-]+)[, ] *([%d.~-]+)[, ] *([%d.~-]+)[, ] *([%d.~-]+)$")
+		if p and p.x and p.y and p.z and p.p then
+			p = core.parse_coordinates(p.x, p.y, p.z, relpos)
+			if p and p.x and p.y and p.z then
+				if player.change_phase then
+					player:change_phase(tonumber(p.p))
+				end
+				return teleport_to_pos(name, p)
+			end
+		end
+		
 		p.x, p.y, p.z = string.match(param, "^([%d.~-]+)[, ] *([%d.~-]+)[, ] *([%d.~-]+)$")
 		p = core.parse_coordinates(p.x, p.y, p.z, relpos)
 		if p and p.x and p.y and p.z then
@@ -599,8 +610,25 @@ core.register_chatcommand("teleport", {
 
 		local teleportee_name
 		p = {}
-		teleportee_name, p.x, p.y, p.z = param:match(
-				"^([^ ]+) +([%d.~-]+)[, ] *([%d.~-]+)[, ] *([%d.~-]+)$")
+		teleportee_name, p.x, p.y, p.z, p.p = param:match(
+				"^([^ ]+) +([%d.~-]+)[, ] *([%d.~-]+)[, ] *([%d.~-]+)[, ] *([%d.~-]+)$")
+		if teleportee_name and p.x and p.y and p.z and p.p then
+			local teleportee = core.get_player_by_name(teleportee_name)
+			if teleportee then
+				relpos = teleportee:get_pos()
+				p = core.parse_coordinates(p.x, p.y, p.z, relpos)
+			end
+		else
+			teleportee_name, p.x, p.y, p.z = param:match(
+					"^([^ ]+) +([%d.~-]+)[, ] *([%d.~-]+)[, ] *([%d.~-]+)$")
+			if teleportee_name then
+				local teleportee = core.get_player_by_name(teleportee_name)
+				if teleportee then
+					relpos = teleportee:get_pos()
+				end
+				p = core.parse_coordinates(p.x, p.y, p.z, relpos)
+			end
+		end
 		if teleportee_name then
 			local teleportee = core.get_player_by_name(teleportee_name)
 			if not teleportee then
@@ -614,6 +642,10 @@ core.register_chatcommand("teleport", {
 		if teleportee_name and p.x and p.y and p.z then
 			if not has_bring_priv then
 				return false, missing_bring_msg
+			end
+			-- Handle phase for bring command
+			if p.p and teleportee.change_phase then
+				teleportee:change_phase(tonumber(p.p))
 			end
 			return teleport_to_pos(teleportee_name, p)
 		end

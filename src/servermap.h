@@ -86,6 +86,14 @@ public:
 	MapBlock *emergeBlock(v3s16 p, bool create_blank=true) override;
 
 	/*
+		Phase-aware block emergence with seed-based generation
+		- Memory
+		- Database (phase-aware)
+		- Generation with phase seed modifier
+	*/
+	MapBlock *emergeBlock(v4s16 p, bool create_blank=true);
+
+	/*
 		Try to get a block.
 		If it does not exist in memory, add it to the emerge queue.
 		- Memory

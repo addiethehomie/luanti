@@ -177,6 +177,12 @@ public:
 	bool deleteBlock(const v3s16 &pos);
 	void listAllLoadableBlocks(std::vector<v3s16> &dst);
 
+	// Phase-aware methods
+	bool saveBlock(const v4s16 &pos, std::string_view data);
+	void loadBlock(const v4s16 &pos, std::string *block);
+	bool deleteBlock(const v4s16 &pos);
+	void listAllLoadableBlocks(std::vector<v4s16> &dst);
+
 	PARENT_CLASS_FUNCS
 
 protected:
@@ -188,12 +194,22 @@ private:
 	/// @return index of next column after position
 	int bindPos(sqlite3_stmt *stmt, v3s16 pos, int index = 1);
 
+	/// @brief Bind 4D block position into statement at column index
+	/// @return index of next column after position
+	int bindPos(sqlite3_stmt *stmt, v4s16 pos, int index = 1);
+
 	bool m_new_format = false;
 
 	sqlite3_stmt *m_stmt_read = nullptr;
 	sqlite3_stmt *m_stmt_write = nullptr;
 	sqlite3_stmt *m_stmt_list = nullptr;
 	sqlite3_stmt *m_stmt_delete = nullptr;
+
+	// Phase-aware statements
+	sqlite3_stmt *m_stmt_read_4d = nullptr;
+	sqlite3_stmt *m_stmt_write_4d = nullptr;
+	sqlite3_stmt *m_stmt_list_4d = nullptr;
+	sqlite3_stmt *m_stmt_delete_4d = nullptr;
 };
 
 class PlayerDatabaseSQLite3 : private Database_SQLite3, public PlayerDatabase

@@ -69,7 +69,13 @@ enum ToClientCommand : u16
 
 	TOCLIENT_BLOCKDATA = 0x20,
 	/*
-		v3s16 position
+		v3s16 position (legacy)
+		serialized MapBlock
+	*/
+
+	TOCLIENT_BLOCKDATA_4D = 0x2D,
+	/*
+		v4s16 position (phase-aware)
 		serialized MapBlock
 	*/
 
