@@ -5,6 +5,7 @@ on:
   push:
     paths:
       - 'lib/**.[ch]'
+      - 'README.md'  
       - 'lib/**.cpp'
       - 'README.md'  
       - 'src/**.[ch]'
