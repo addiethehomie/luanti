@@ -1296,7 +1296,7 @@ static bool migrate_map_database(const GameParams &game_params, const Settings &
 	}
 	
 	// Migrate phase-aware blocks (if old database supports them)
-	if (old_db->listAllLoadableBlocks) {
+		// All databases should support the v4s16 overload for phase-aware blocks
 		try {
 			// Try to get phase-aware blocks from old database
 			// This will only work if the old database has the dual-table schema
@@ -1326,7 +1326,6 @@ static bool migrate_map_database(const GameParams &game_params, const Settings &
 			// Old database doesn't support phase-aware blocks, continue with legacy only
 			infostream << "Old database doesn't support phase-aware blocks, migrating legacy only." << std::endl;
 		}
-	}
 	std::cerr << std::endl;
 	new_db->endSave();
 	delete old_db;

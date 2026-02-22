@@ -43,7 +43,7 @@ Map::~Map()
 		for (auto &block_entry : m_blocks) {
 			MapBlock *block = block_entry.second;
 			if (block) {
-				if (block->refcount() > 0) {
+				if (block->refGet() > 0) {
 					used++;
 				}
 				delete block;
