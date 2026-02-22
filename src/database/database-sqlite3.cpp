@@ -279,6 +279,7 @@ void MapDatabaseSQLite3::initStatements()
 		// Legacy format - convert to unified on first write
 		PREPARE_STATEMENT(read, "SELECT `data` FROM `blocks` WHERE `pos` = ? LIMIT 1");
 	}
+}
 
 inline int MapDatabaseSQLite3::bindPos(sqlite3_stmt *stmt, v3s16 pos, int index)
 {
