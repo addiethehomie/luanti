@@ -14,9 +14,9 @@ const ToClientCommandHandler toClientCommandTable[TOCLIENT_NUM_MSG_TYPES] =
 	null_command_handler, // 0x00 (never use this)
 	null_command_handler, // 0x01
 	{ "TOCLIENT_HELLO",                   TOCLIENT_STATE_NOT_CONNECTED, &Client::handleCommand_Hello }, // 0x02
-	{ "TOCLIENT_AUTH_ACCEPT",             TOCLIENT_STATE_NOT_CONNECTED, &Client::handleCommand_AuthAccept }, // 0x03
-	{ "TOCLIENT_ACCEPT_SUDO_MODE",        TOCLIENT_STATE_CONNECTED, &Client::handleCommand_AcceptSudoMode}, // 0x04
-	{ "TOCLIENT_DENY_SUDO_MODE",          TOCLIENT_STATE_CONNECTED, &Client::handleCommand_DenySudoMode}, // 0x05
+	null_command_handler, // 0x03
+	null_command_handler, // 0x04
+	null_command_handler, // 0x05
 	null_command_handler, // 0x06
 	null_command_handler, // 0x07
 	null_command_handler, // 0x08
@@ -173,8 +173,8 @@ const ServerCommandFactory serverCommandFactoryTable[TOSERVER_NUM_MSG_TYPES] =
 	null_command_factory, // 0x2a
 	null_command_factory, // 0x2b
 	null_command_factory, // 0x2c
-	null_command_factory, // 0x2d
-	null_command_factory, // 0x2e
+	{ "TOCLIENT_BLOCKDATA_4D",      0, true }, // 0x2d
+	{ "TOCLIENT_PHASE_CHANGE",      0, true }, // 0x2e
 	null_command_factory, // 0x2f
 	null_command_factory, // 0x30
 	{ "TOSERVER_INVENTORY_ACTION",   0, true }, // 0x31

@@ -4534,3 +4534,27 @@ void Server::handlePlayerPhaseChange(RemotePlayer *player, s16 new_phase)
 	// Send updated position to client
 	SendMovePlayer(sao);
 }
+
+void Server::sendPhaseChangeToClient(RemotePlayer *player)
+{
+	if (!player) return;
+	
+	// Check if client is 4D-aware (protocol version >= new threshold)
+	const u16 PHASE_AWARE_PROTOCOL_VERSION = 48; // Example threshold
+	
+	if (player->protocol_version >= PHASE_AWARE_PROTOCOL_VERSION) {
+		// Send full 4D position to modern clients
+		NetworkPacket pkt(TOCLIENT_PHASE_CHANGE, 6, player->getPeerId());
+		pkt << player->getCurrentPhase();
+		Send(&pkt);
+	} else {
+		// Legacy client: server acts as phase proxy
+		// Strip phase information, send only 3D position
+		// The server will handle phase resolution server-side
+		NetworkPacket pkt(TOCLIENT_MOVE_PLAYER, 12 + 12 + 4, player->getPeerId());
+		v3f pos = player->getPosition();
+		v3f vel = v3f(0, 0, 0); // Zero velocity for phase transition
+		pkt << pos << vel << player->getPitch() << player->getYaw();
+		Send(&pkt);
+	}
+}

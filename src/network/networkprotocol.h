@@ -120,6 +120,11 @@ enum ToClientCommand : u16
 		bool should_be_cached
 	*/
 
+	TOCLIENT_PHASE_CHANGE = 0x2E,
+	/*
+		s16 new_phase
+	*/
+
 	TOCLIENT_CHAT_MESSAGE = 0x2F,
 	/*
 		u8 version

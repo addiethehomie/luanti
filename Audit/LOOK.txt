@@ -1,0 +1,38 @@
+Here is a refined technical description of your 4D coordinate implementation, structured for documentation or developer briefs. It emphasizes the backward compatibility strategy and the specific role of the "Phase" axis.
+
+***
+
+### Implementation Specification: 4D Spatial Architecture (X, Y, Z, P)
+
+**Overview**
+The engine is transitioning from a standard 3D coordinate system to a **4D hyper-grid architecture**, introducing a fourth spatial axis: **Phase (P)**. This creates a coordinate tuple of `(x, y, z, p)`, where `p` represents distinct, parallel instances of the world volume.
+
+**Coordinate Definition**
+*   **Axes:** `X`, `Y`, `Z` (Spatial), `P` (Phase/Dimensional).
+*   **Data Type:** All four axes utilize signed 16-bit integers (`s16`).
+    *   *Range:* -32,768 to 32,767.
+    *   *Consistency:* Maintains parity with existing coordinate precision, ensuring no memory alignment shifts or performance penalties for standard operations.
+*   **Base World:** The default Overworld resides at **Phase 0** (`p=0`).
+
+**Server-Side Phase Management & Legacy Compatibility**
+A core design goal is seamless interoperability between legacy clients (unaware of the 4th dimension) and modern clients (4D-aware).
+
+1.  **Legacy Clients (3D-Only):**
+    *   The server acts as a **Phase Proxy**. It manages the `P` coordinate entirely server-side for these connections.
+    *   When a legacy client interacts with the world, the server binds their session to a specific Phase (defaulting to `p=0` unless logic dictates otherwise).
+    *   Network packets sent to legacy clients strip the `P` component, transmitting only standard `(x, y, z)` data. The server internally maps these 3D requests to the correct 4D location based on the player's current phase context.
+
+2.  **Modern Clients (4D-Aware):**
+    *   These clients receive the full **(x, y, z, p)** tuple.
+    *   They are responsible for rendering and interacting with the specific Phase assigned to them, allowing for instant transitions between phases without server-side teleportation hacks.
+
+**Mod Compatibility Strategy**
+The implementation is designed to be **non-invasive** to the existing modding ecosystem.
+
+*   **Implicit Isolation:** Mods written for the 3D engine will continue to function normally. Since they do not explicitly manipulate the `P` coordinate, their operations are implicitly scoped to the player's current Phase.
+    *   *Example:* A mod placing a node at `(x, y, z)` will place it at `(x, y, z, current_p)`. It will not accidentally affect `(x, y, z, p+1)`.
+*   **Item Portability:** Items and entities retain their data structure. If a player carries a modded item from Phase 0 to Phase 1, the item behaves identically in the new phase. The mod logic remains unchanged; only the spatial context (`P`) of the interaction has shifted.
+*   **No Breaking Changes:** No changes are required in `depends.txt` or mod code for existing mods to remain functional. Advanced mods can optionally adopt the 4D API to create cross-phase mechanics (e.g., portals, phase-shifting devices) by explicitly addressing the `P` axis.
+
+**Summary**
+This architecture effectively multiplies the available world volume by the range of `s16` phases while maintaining a lightweight footprint. By handling Phase resolution server-side for legacy connections, we ensure a unified multiplayer environment where old and new clients coexist without fragmentation.

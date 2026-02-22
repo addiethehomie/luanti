@@ -139,6 +139,21 @@ public:
 
 	v3f getPosition() const { return m_position; }
 
+	// Phase-aware position management
+	v4s16 getPosition4D() const { 
+		return v4s16(floatToInt(m_position, BS).X, 
+					floatToInt(m_position, BS).Y, 
+					floatToInt(m_position, BS).Z, 
+					m_current_phase); 
+	}
+	s16 getCurrentPhase() const { return m_current_phase; }
+	
+	// Phase change method (client-side)
+	void changePhase(s16 new_phase) {
+		m_current_phase = new_phase;
+		// Server will validate and send updated position
+	}
+
 	// Non-transformed eye offset getters
 	// For accurate positions, use the Camera functions
 	v3f getEyePosition() const { return m_position + getEyeOffset(); }
@@ -211,6 +226,9 @@ private:
 	float m_zoom_fov = 0.0f;
 	bool m_autojump = false;
 	float m_autojump_time = 0.0f;
+
+	// Phase Dimension System: Current phase tracking
+	s16 m_current_phase = 0;  // Default to Phase 0
 
 	v3f m_added_velocity = v3f(0.0f); // in BS-space; cleared on each move()
 

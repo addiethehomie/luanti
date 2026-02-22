@@ -339,6 +339,69 @@ void Client::handleCommand_BlockData(NetworkPacket* pkt)
 	addUpdateMeshTaskWithEdge(p, true);
 }
 
+void Client::handleCommand_BlockData4D(NetworkPacket* pkt)
+{
+	// Ignore too small packet
+	if (pkt->getSize() < 8) // v4s16 is 8 bytes (4 * s16)
+		return;
+
+	v4s16 p;
+	*pkt >> p;
+
+	std::string datastring(pkt->getRemainingString(), pkt->getRemainingBytes());
+	std::istringstream istr(datastring, std::ios_base::binary);
+
+	MapSector *sector;
+	MapBlock *block;
+
+	v2s16 p2d(p.X, p.Z);
+	sector = m_env.getMap().emergeSector(p2d);
+
+	assert(sector->getPos() == p2d);
+
+	block = sector->getBlockNoCreateNoEx(p.Y);
+	if (block) {
+		/*
+			Update an existing block
+		*/
+		block->deSerialize(istr, m_server_ser_ver, false);
+		block->deSerializeNetworkSpecific(istr);
+	}
+	else {
+		/*
+			Create a new block
+		*/
+		block = sector->createBlankBlock(p.Y);
+		block->deSerialize(istr, m_server_ser_ver, false);
+		block->deSerializeNetworkSpecific(istr);
+	}
+
+	if (m_localdb) {
+		ServerMap::saveBlock(block, m_localdb.get());
+	}
+
+	/*
+		Add it to mesh update queue and set it to be acknowledged after update.
+	*/
+	addUpdateMeshTaskWithEdge(p.toV3s16(), true);
+}
+
+void Client::handleCommand_PhaseChange(NetworkPacket* pkt)
+{
+	if (pkt->getSize() < 2)
+		return;
+
+	s16 new_phase;
+	*pkt >> new_phase;
+
+	// Update local player's phase
+	LocalPlayer *player = m_env.getLocalPlayer();
+	if (player) {
+		player->changePhase(new_phase);
+		infostream << "Client: Phase changed to " << new_phase << std::endl;
+	}
+}
+
 void Client::handleCommand_Inventory(NetworkPacket* pkt)
 {
 	if (pkt->getSize() < 1)
