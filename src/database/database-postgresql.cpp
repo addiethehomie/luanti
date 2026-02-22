@@ -166,8 +166,9 @@ void MapDatabasePostgreSQL::createDatabase()
 			"posX smallint NOT NULL,"
 			"posY smallint NOT NULL,"
 			"posZ smallint NOT NULL,"
+			"posP smallint NOT NULL DEFAULT 0,"
 			"data BYTEA,"
-			"PRIMARY KEY (posX,posY,posZ)"
+			"PRIMARY KEY (posX,posY,posZ,posP)"
 			");"
 	);
 
@@ -206,6 +207,24 @@ void MapDatabasePostgreSQL::initStatements()
 
 	prepareStatement("list_all_loadable_blocks",
 		"SELECT posX, posY, posZ FROM blocks");
+
+	// Phase-aware 4D statements
+	prepareStatement("load_block_4d",
+		"SELECT data FROM blocks "
+			"WHERE posX = $1::int4 AND posY = $2::int4 AND "
+			"posZ = $3::int4 AND posP = $4::int4");
+
+	prepareStatement("save_block_4d",
+		"INSERT INTO blocks (posX, posY, posZ, posP, data) VALUES "
+			"($1::int4, $2::int4, $3::int4, $4::int4, $5::bytea) "
+			"ON CONFLICT ON CONSTRAINT blocks_pkey DO "
+			"UPDATE SET data = $5::bytea");
+
+	prepareStatement("delete_block_4d", "DELETE FROM blocks WHERE "
+		"posX = $1::int4 AND posY = $2::int4 AND posZ = $3::int4 AND posP = $4::int4");
+
+	prepareStatement("list_all_loadable_blocks_4d",
+		"SELECT posX, posY, posZ, posP FROM blocks");
 }
 
 bool MapDatabasePostgreSQL::saveBlock(const v3s16 &pos, std::string_view data)
@@ -293,6 +312,94 @@ void MapDatabasePostgreSQL::listAllLoadableBlocks(std::vector<v3s16> &dst)
 
 	for (int row = 0; row < numrows; ++row)
 		dst.push_back(pg_to_v3s16(results, row, 0));
+
+	PQclear(results);
+}
+
+bool MapDatabasePostgreSQL::saveBlock(const v4s16 &pos, std::string_view data)
+{
+	verifyDatabase();
+
+	s32 x, y, z, p;
+	x = htonl(pos.X);
+	y = htonl(pos.Y);
+	z = htonl(pos.Z);
+	p = htonl(pos.P);
+
+	const void *args[] = { &x, &y, &z, &p, data.data() };
+	const int argLen[] = {
+		sizeof(x), sizeof(y), sizeof(z), sizeof(p), (int)data.size()
+	};
+	const int argFmt[] = { 1, 1, 1, 1, 1 };
+
+	PGresult *results = execPrepared("save_block_4d", 5, args, argLen, argFmt,
+		false, false);
+
+	bool ok = (PQresultStatus(results) == PGRES_COMMAND_OK);
+	PQclear(results);
+
+	return ok;
+}
+
+void MapDatabasePostgreSQL::loadBlock(const v4s16 &pos, std::string *block)
+{
+	verifyDatabase();
+
+	s32 x, y, z, p;
+	x = htonl(pos.X);
+	y = htonl(pos.Y);
+	z = htonl(pos.Z);
+	p = htonl(pos.P);
+
+	const void *args[] = { &x, &y, &z, &p };
+	const int argLen[] = { sizeof(x), sizeof(y), sizeof(z), sizeof(p) };
+	const int argFmt[] = { 1, 1, 1, 1 };
+
+	PGresult *results = execPrepared("load_block_4d", 4, args, argLen, argFmt,
+		false, true);
+
+	if (PQntuples(results) == 1)
+		*block = std::string(PQgetvalue(results, 0, 0), PQgetlength(results, 0, 0));
+	else
+		block->clear();
+
+	PQclear(results);
+}
+
+bool MapDatabasePostgreSQL::deleteBlock(const v4s16 &pos)
+{
+	verifyDatabase();
+
+	s32 x, y, z, p;
+	x = htonl(pos.X);
+	y = htonl(pos.Y);
+	z = htonl(pos.Z);
+	p = htonl(pos.P);
+
+	const void *args[] = { &x, &y, &z, &p };
+	const int argLen[] = { sizeof(x), sizeof(y), sizeof(z), sizeof(p) };
+	const int argFmt[] = { 1, 1, 1, 1 };
+
+	PGresult *results = execPrepared("delete_block_4d", 4, args, argLen, argFmt,
+		false, false);
+
+	bool ok = (PQresultStatus(results) == PGRES_COMMAND_OK);
+	PQclear(results);
+
+	return ok;
+}
+
+void MapDatabasePostgreSQL::listAllLoadableBlocks(std::vector<v4s16> &dst)
+{
+	verifyDatabase();
+
+	PGresult *results = execPrepared("list_all_loadable_blocks_4d", 0,
+		NULL, NULL, NULL, false, false);
+
+	int numrows = PQntuples(results);
+
+	for (int row = 0; row < numrows; ++row)
+		dst.push_back(pg_to_v4s16(results, row, 0));
 
 	PQclear(results);
 }

@@ -255,6 +255,16 @@ void push_v3s16(lua_State *L, v3s16 p)
 	lua_call(L, 3, 1);
 }
 
+void push_v4s16(lua_State *L, v4s16 p)
+{
+	lua_rawgeti(L, LUA_REGISTRYINDEX, CUSTOM_RIDX_PUSH_VECTOR);
+	lua_pushinteger(L, p.X);
+	lua_pushinteger(L, p.Y);
+	lua_pushinteger(L, p.Z);
+	lua_pushinteger(L, p.P);
+	lua_call(L, 4, 1);
+}
+
 v3s16 read_v3s16(lua_State *L, int index)
 {
 	// Correct rounding at <0

@@ -864,14 +864,22 @@ Syntax of x, y and z:
 
 Returns: a vector or nil for invalid input
 ]]
-function core.parse_coordinates(x, y, z, relative_to)
+function core.parse_coordinates(x, y, z, relative_to, p)
 	if not relative_to then
 		x, y, z = tonumber(x), tonumber(y), tonumber(z)
+		if p then
+			p = tonumber(p)
+			return x and y and z and p and {x = x, y = y, z = z, P = p}
+		end
 		return x and y and z and vector.new(x, y, z)
 	end
 	local rx = core.parse_relative_number(x, relative_to.x)
 	local ry = core.parse_relative_number(y, relative_to.y)
 	local rz = core.parse_relative_number(z, relative_to.z)
+	if p then
+		local rp = core.parse_relative_number(p, relative_to.P or 0)
+		return rx and ry and rz and rp and {x = rx, y = ry, z = rz, P = rp}
+	end
 	return rx and ry and rz and vector.new(rx, ry, rz)
 end
 

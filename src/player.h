@@ -7,6 +7,7 @@
 #include "irrlichttypes_bloated.h"
 #include "inventory.h"
 #include "util/basic_macros.h"
+#include "irr_v3d.h"
 #include <string>
 #include <string_view>
 

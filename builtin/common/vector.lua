@@ -422,3 +422,109 @@ if rawget(_G, "core") and core.set_read_vector and core.set_push_vector then
 	end
 	core.set_push_vector = nil
 end
+
+-- 4D Vector implementation for phase-aware coordinates
+vector4d = {}
+
+local metatable4d = {}
+vector4d.metatable = metatable4d
+
+local xyzp = {"x", "y", "z", "P"}
+
+-- only called when rawget(v, key) returns nil
+function metatable4d.__index(v, key)
+	return rawget(v, xyzp[key]) or vector4d[key]
+end
+
+-- only called when rawget(v, key) returns nil
+function metatable4d.__newindex(v, key, value)
+	rawset(v, xyzp[key] or key, value)
+end
+
+-- constructors
+local function fast_new4d(x, y, z, p)
+	return setmetatable({x = x, y = y, z = z, P = p}, metatable4d)
+end
+
+function vector4d.new(a, b, c, d)
+	if a and b and c and d then
+		return fast_new4d(a, b, c, d)
+	end
+
+	-- deprecated, use vector4d.copy and vector4d.zero directly
+	if type(a) == "table" then
+		return vector4d.copy(a)
+	else
+		assert(not a, "Invalid arguments for vector4d.new()")
+		return vector4d.zero()
+	end
+end
+
+function vector4d.zero()
+	return fast_new4d(0, 0, 0, 0)
+end
+
+function vector4d.copy(v)
+	return fast_new4d(v.x, v.y, v.z, v.P or 0)
+end
+
+function vector4d.tostring(v)
+	return string.format("(%g, %g, %g, %g)", v.x, v.y, v.z, v.P or 0)
+end
+
+function vector4d.equals(a, b)
+	return a.x == b.x and a.y == b.y and a.z == b.z and (a.P or 0) == (b.P or 0)
+end
+
+function vector4d.distance(a, b)
+	local dx = a.x - b.x
+	local dy = a.y - b.y
+	local dz = a.z - b.z
+	local dp = (a.P or 0) - (b.P or 0)
+	return math.sqrt(dx*dx + dy*dy + dz*dz + dp*dp)
+end
+
+function vector4d.length(v)
+	return math.sqrt(v.x*v.x + v.y*v.y + v.z*v.z + (v.P or 0)*(v.P or 0))
+end
+
+function vector4d.normalize(v)
+	local len = vector4d.length(v)
+	if len == 0 then
+		return vector4d.zero()
+	end
+	return fast_new4d(v.x/len, v.y/len, v.z/len, (v.P or 0)/len)
+end
+
+function vector4d.add(a, b)
+	return fast_new4d(a.x + b.x, a.y + b.y, a.z + b.z, (a.P or 0) + (b.P or 0))
+end
+
+function vector4d.subtract(a, b)
+	return fast_new4d(a.x - b.x, a.y - b.y, a.z - b.z, (a.P or 0) - (b.P or 0))
+end
+
+function vector4d.multiply(v, s)
+	return fast_new4d(v.x * s, v.y * s, v.z * s, (v.P or 0) * s)
+end
+
+function vector4d.to3d(v)
+	return vector.new(v.x, v.y, v.z)
+end
+
+-- Set up metatable for 4D vectors
+metatable4d.__tostring = vector4d.tostring
+metatable4d.__eq = vector4d.equals
+metatable4d.__add = vector4d.add
+metatable4d.__sub = vector4d.subtract
+metatable4d.__mul = vector4d.multiply
+metatable4d.__unm = function(v) return vector4d.multiply(v, -1) end
+
+-- Register 4D vector push function if available
+if core.set_push_vector then
+	local fast_new4d_backup = fast_new4d
+	function fast_new4d(x, y, z, p)
+		return fast_new4d_backup(x, y, z, p)
+	end
+	core.set_push_vector(fast_new4d)
+end

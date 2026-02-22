@@ -584,7 +584,7 @@ core.register_chatcommand("teleport", {
 		local p = {}
 		p.x, p.y, p.z, p.p = string.match(param, "^([%d.~-]+)[, ] *([%d.~-]+)[, ] *([%d.~-]+)[, ] *([%d.~-]+)$")
 		if p and p.x and p.y and p.z and p.p then
-			p = core.parse_coordinates(p.x, p.y, p.z, relpos)
+			p = core.parse_coordinates(p.x, p.y, p.z, relpos, p.p)
 			if p and p.x and p.y and p.z then
 				if player.change_phase then
 					player:change_phase(tonumber(p.p))
@@ -616,7 +616,7 @@ core.register_chatcommand("teleport", {
 			local teleportee = core.get_player_by_name(teleportee_name)
 			if teleportee then
 				relpos = teleportee:get_pos()
-				p = core.parse_coordinates(p.x, p.y, p.z, relpos)
+				p = core.parse_coordinates(p.x, p.y, p.z, relpos, p.p)
 			end
 		else
 			teleportee_name, p.x, p.y, p.z = param:match(

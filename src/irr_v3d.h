@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <ostream>
 #include "irrlichttypes.h"
 
 #include <vector3d.h>
@@ -60,3 +61,9 @@ struct v4s16 {
 		return v3s16(X, Y, Z);
 	}
 };
+
+// Stream operator for v4s16 logging
+inline std::ostream& operator<<(std::ostream& os, const v4s16& vec)
+{
+	return os << '(' << vec.X << ',' << vec.Y << ',' << vec.Z << ',' << vec.P << ')';
+}

@@ -6,6 +6,7 @@ on:
     paths:
       - 'lib/**.[ch]'
       - 'lib/**.cpp'
+      - 'README.md'  
       - 'src/**.[ch]'
       - 'src/**.cpp'
       - 'irr/**.[ch]'

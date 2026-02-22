@@ -49,6 +49,16 @@ protected:
 		);
 	}
 
+	inline v4s16 pg_to_v4s16(PGresult *res, int row, int col)
+	{
+		return v4s16(
+			pg_to_int(res, row, col),
+			pg_to_int(res, row, col + 1),
+			pg_to_int(res, row, col + 2),
+			pg_to_int(res, row, col + 3)
+		);
+	}
+
 	inline std::string pg_to_string(PGresult *res, int row, int col)
 	{
 		return std::string(PQgetvalue(res, row, col), PQgetlength(res, row, col));
@@ -113,6 +123,12 @@ public:
 	void loadBlock(const v3s16 &pos, std::string *block);
 	bool deleteBlock(const v3s16 &pos);
 	void listAllLoadableBlocks(std::vector<v3s16> &dst);
+
+	// Phase-aware methods
+	bool saveBlock(const v4s16 &pos, std::string_view data);
+	void loadBlock(const v4s16 &pos, std::string *block);
+	bool deleteBlock(const v4s16 &pos);
+	void listAllLoadableBlocks(std::vector<v4s16> &dst);
 
 	PARENT_CLASS_FUNCS
 

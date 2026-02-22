@@ -10,8 +10,7 @@
 #include "skyparams.h"
 #include "lighting.h"
 #include "network/networkprotocol.h" // session_t
-
-class PlayerSAO;
+#include "server/player_sao.h"
 
 enum RemotePlayerChatResult
 {
