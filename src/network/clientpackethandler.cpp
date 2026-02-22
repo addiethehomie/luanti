@@ -6,6 +6,7 @@
 
 #include "exceptions.h"
 #include "irr_v2d.h"
+#include "irr_v3d.h"
 #include "util/base64.h"
 #include "client/camera.h"
 #include "client/mesh_generator_thread.h"

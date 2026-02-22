@@ -474,6 +474,25 @@ NetworkPacket& NetworkPacket::operator<<(v3s16 src)
 	return *this;
 }
 
+NetworkPacket& NetworkPacket::operator>>(v4s16& dst)
+{
+	checkReadOffset(m_read_offset, 8);
+
+	dst = readV4S16(&m_data[m_read_offset]);
+
+	m_read_offset += 8;
+	return *this;
+}
+
+NetworkPacket& NetworkPacket::operator<<(v4s16 src)
+{
+	*this << (s16) src.X;
+	*this << (s16) src.Y;
+	*this << (s16) src.Z;
+	*this << (s16) src.P;
+	return *this;
+}
+
 NetworkPacket& NetworkPacket::operator<<(v2s32 src)
 {
 	*this << (s32) src.X;

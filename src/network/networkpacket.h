@@ -117,6 +117,9 @@ public:
 	NetworkPacket &operator>>(v3s16 &dst);
 	NetworkPacket &operator<<(v3s16 src);
 
+	NetworkPacket &operator>>(v4s16 &dst);
+	NetworkPacket &operator<<(v4s16 src);
+
 	NetworkPacket &operator>>(v3s32 &dst);
 	NetworkPacket &operator<<(v3s32 src);
 
