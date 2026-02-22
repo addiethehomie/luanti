@@ -38,9 +38,10 @@ struct v4s16 {
 			u16 p = (u16)pos.P;
 			
 			// Use proper bit separation with multiplication for better distribution
-			return ((size_t)x << 48) ^ 
-				   ((size_t)y << 32) ^ 
-				   ((size_t)z << 16) ^ 
+			// Ensure shifts are within size_t bounds (typically 32-bit on 32-bit systems)
+			return ((size_t)x << 16) ^ 
+				   ((size_t)y << 8) ^ 
+				   ((size_t)z << 4) ^ 
 				   (size_t)p;
 		}
 	};

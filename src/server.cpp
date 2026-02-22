@@ -2240,6 +2240,28 @@ void Server::SendActiveObjectRemoveAdd(RemoteClient *client, PlayerSAO *playersa
 	Send(&pkt);
 }
 
+void Server::SendActiveObjectRemoveMessages(PlayerSAO *playersao)
+{
+	if (!playersao)
+		return;
+	
+	// Send remove messages to all connected clients
+	for (auto &client_it : m_clients.getClientList()) {
+		RemoteClient *client = static_cast<RemoteClient*>(client_it.second);
+		if (!client)
+			continue;
+			
+		// Send remove message for this player's SAO to the client
+		NetworkPacket pkt(TOCLIENT_ACTIVE_OBJECT_REMOVE_ADD, 2, client->peer_id);
+		pkt << static_cast<u16>(1); // Count of removed objects
+		pkt << playersao->getId(); // Object ID to remove
+		Send(&pkt);
+		
+		// Remove from client's known objects
+		client->m_known_objects.erase(playersao->getId());
+	}
+}
+
 void Server::SendActiveObjectMessages(session_t peer_id, const std::string &datas,
 		bool reliable)
 {
@@ -4522,10 +4544,15 @@ void Server::handlePlayerPhaseChange(RemotePlayer *player, s16 new_phase)
 		for (s16 y = -1; y <= 1; y++) {
 			for (s16 z = -1; z <= 1; z++) {
 				v4s16 emerge_pos(block_pos.X + x, block_pos.Y + y, block_pos.Z + z, new_phase);
-				MapBlock *block = m_env->getMap().emergeBlock(emerge_pos, false);
+				MapBlock *block = m_env->getMap().emergeBlock(emerge_pos.toV3s16(), false);
 				if (block) {
-					// Send block to client if in range
-					m_clients.sendBlock(block_pos.X + x, block_pos.Y + y, block_pos.Z + z, block);
+					// Send block to all clients if in range
+					for (auto &client_it : m_clients.getClientList()) {
+						RemoteClient *client = static_cast<RemoteClient*>(client_it.second);
+						if (client && !client->isBlockSent(block->getPos())) {
+							SendBlock(client->peer_id, block->getPos());
+						}
+					}
 				}
 			}
 		}
@@ -4554,7 +4581,7 @@ void Server::sendPhaseChangeToClient(RemotePlayer *player)
 		NetworkPacket pkt(TOCLIENT_MOVE_PLAYER, 12 + 12 + 4, player->getPeerId());
 		v3f pos = player->getPosition();
 		v3f vel = v3f(0, 0, 0); // Zero velocity for phase transition
-		pkt << pos << vel << player->getPitch() << player->getYaw();
+		pkt << pos << vel << player->getPlayerControl().pitch << player->getPlayerControl().yaw;
 		Send(&pkt);
 	}
 }

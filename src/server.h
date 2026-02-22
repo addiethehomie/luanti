@@ -620,6 +620,7 @@ private:
 	void SendSpawnParticles();
 
 	void SendActiveObjectRemoveAdd(RemoteClient *client, PlayerSAO *playersao);
+	void SendActiveObjectRemoveMessages(PlayerSAO *playersao);
 	void SendActiveObjectMessages(session_t peer_id, const std::string &datas,
 		bool reliable = true);
 	void SendCSMRestrictionFlags(session_t peer_id);

@@ -128,6 +128,8 @@ public:
 
 	// Load block in a synchronous fashion
 	MapBlock *loadBlock(v3s16 p);
+	// Load block with 4D position support
+	MapBlock *loadBlock(v4s16 p);
 	/// Load a block that was already read from disk. Used by EmergeManager.
 	/// @return non-null block (but can be blank)
 	MapBlock *loadBlock(const std::string &blob, v3s16 p, bool save_after_load=false);

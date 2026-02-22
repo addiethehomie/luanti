@@ -458,7 +458,7 @@ MapBlock * ServerMap::emergeBlock(v4s16 p, bool create_blank)
 
 	// Try loading from phase-aware database
 	{
-		MapBlock *block = loadBlock(p);
+		MapBlock *block = loadBlock(p.toV3s16());
 		if(block)
 			return block;
 	}
@@ -484,7 +484,7 @@ MapBlock * ServerMap::emergeBlock(v4s16 p, bool create_blank)
 			
 			if (block) {
 				// Store phase information and modify seed for generation
-				block->setIsGenerated(false);
+				block->setGenerated(false);
 				
 				// If this block gets generated, use phase as seed modifier
 				// Phase 0 = original seed, other phases = seed + phase_id
@@ -496,7 +496,10 @@ MapBlock * ServerMap::emergeBlock(v4s16 p, bool create_blank)
 					u64 phase_modified_seed = base_seed + phase_id;
 					
 					// Temporarily modify mapgen seed for this phase (truncate to 32-bit for compatibility)
-					m_emerge->mapgen->seed = (s32)phase_modified_seed;
+					Mapgen *mapgen = m_emerge->getCurrentMapgen();
+					if (mapgen) {
+						mapgen->seed = (s32)phase_modified_seed;
+					}
 				}
 				return block;
 			}
@@ -872,12 +875,12 @@ MapBlock* ServerMap::loadBlock(v4s16 blockpos)
 	{
 		ScopeProfiler sp(g_profiler, "ServerMap: load block 4D - sync (sum)");
 		MutexAutoLock dblock(m_db.mutex);
-		m_db.loadBlock(blockpos, data);
+		m_db.loadBlock(blockpos.toV3s16(), data);
 	}
 
 	if (!data.empty())
 		return loadBlock(data, blockpos.toV3s16());
-	return getBlockNoCreateNoEx(blockpos);
+	return getBlockNoCreateNoEx(blockpos.toV3s16());
 }
 
 bool ServerMap::deleteBlock(v3s16 blockpos)

@@ -7,6 +7,7 @@
 #include <json/json.h>
 #include "gamedef.h"
 #include "server.h"
+#include "serverenvironment.h"
 #include "settings.h"
 #include "server/player_sao.h"
 
