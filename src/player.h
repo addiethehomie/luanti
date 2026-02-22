@@ -8,6 +8,8 @@
 #include "inventory.h"
 #include "util/basic_macros.h"
 #include "irr_v3d.h"
+#include "constants.h"
+#include "util/numeric.h"
 #include <string>
 #include <string_view>
 
