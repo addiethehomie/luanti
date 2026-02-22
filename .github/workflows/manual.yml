@@ -1,0 +1,1 @@
+name: Manual Build\n\njobs:\n  build:\n    runs-on: ${{ matrix.os }}\n    strategy:\n      matrix:\n        os: [ubuntu-latest, windows-latest, macos-latest]  \n    steps:\n    - name: Checkout\n      uses: actions/checkout@v2\n    - name: Build Project\n      run: |\n        echo 'Building for ${{ matrix.os }}'\n\n\n      \n
