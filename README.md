@@ -83,7 +83,7 @@ Locations:
 * `share` - Distributed read-only data
 * `user`  - User-created modifiable data
 
-Where each location is on each platform:
+Where each location is on each platform: 
 
 * Windows .zip / RUN_IN_PLACE source:
     * `bin`   = `bin`
