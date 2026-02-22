@@ -43,8 +43,8 @@ public:
 	static v3s16 getIntegerAsBlock(s64 i);
 
 	// Phase-aware integer conversion
-	static s64 getBlockAsInteger(const v4s16 &pos);
-	static v4s16 getIntegerAsBlock(s64 i);
+	static s64 getBlockAsInteger4D(const v4s16 &pos);
+	static v4s16 getIntegerAsBlock4D(s64 i);
 
 	virtual void listAllLoadableBlocks(std::vector<v3s16> &dst) = 0;
 	virtual void listAllLoadableBlocks(std::vector<v4s16> &dst) = 0;

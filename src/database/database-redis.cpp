@@ -179,6 +179,7 @@ void Database_Redis::listAllLoadableBlocks(std::vector<v3s16> &dst)
 		throw DatabaseException(std::string(
 			"Redis command 'HKEYS %s' failed: ") + ctx->errstr);
 	}
+
 	switch (reply->type) {
 	case REDIS_REPLY_ARRAY:
 		dst.reserve(reply->elements);
@@ -195,5 +196,117 @@ void Database_Redis::listAllLoadableBlocks(std::vector<v3s16> &dst)
 	freeReplyObject(reply);
 }
 
-#endif // USE_REDIS
+bool Database_Redis::saveBlock(const v4s16 &pos, std::string_view data)
+{
+	std::string tmp = i64tos(getBlockAsInteger4D(pos));
 
+	redisReply *reply = static_cast<redisReply *>(redisCommand(ctx, "HSET %s %s %b",
+			hash.c_str(), tmp.c_str(), data.data(), data.size()));
+	if (!reply) {
+		warningstream << "saveBlock: redis command 'HSET' failed on "
+			"block " << pos << ": " << ctx->errstr << std::endl;
+		freeReplyObject(reply);
+		return false;
+	}
+
+	if (reply->type == REDIS_REPLY_ERROR) {
+		warningstream << "saveBlock: saving block " << pos
+			<< " failed: " << std::string(reply->str, reply->len) << std::endl;
+		freeReplyObject(reply);
+		return false;
+	}
+
+	freeReplyObject(reply);
+	return true;
+}
+
+void Database_Redis::loadBlock(const v4s16 &pos, std::string *block)
+{
+	std::string tmp = i64tos(getBlockAsInteger4D(pos));
+	redisReply *reply = static_cast<redisReply *>(redisCommand(ctx,
+			"HGET %s %s", hash.c_str(), tmp.c_str()));
+
+	if (!reply) {
+		errorstream << "loadBlock: redis command 'HGET %s %s' failed on block "
+			<< pos << ": " << ctx->errstr << std::endl;
+		throw DatabaseException(std::string(
+			"Redis command 'HGET %s %s' failed.") + ctx->errstr);
+	}
+
+	switch (reply->type) {
+	case REDIS_REPLY_STRING: {
+		block->assign(reply->str, reply->len);
+		freeReplyObject(reply);
+		return;
+	}
+	case REDIS_REPLY_ERROR: {
+		std::string errstr(reply->str, reply->len);
+		freeReplyObject(reply);
+		errorstream << "loadBlock: loading block " << pos
+			<< " failed: " << errstr << std::endl;
+		throw DatabaseException(std::string(
+			"Redis command 'HGET %s %s' failed.") + errstr);
+	}
+	case REDIS_REPLY_NIL: {
+		block->clear();
+		freeReplyObject(reply);
+		return;
+	}
+	}
+
+	errorstream << "loadBlock: loading block " << pos
+		<< " returned invalid reply type " << reply->type
+		<< ": " << std::string(reply->str, reply->len) << std::endl;
+	freeReplyObject(reply);
+	throw DatabaseException(std::string(
+		"Redis command 'HGET %s %s' gave invalid reply."));
+}
+
+bool Database_Redis::deleteBlock(const v4s16 &pos)
+{
+	std::string tmp = i64tos(getBlockAsInteger4D(pos));
+
+	redisReply *reply = static_cast<redisReply *>(redisCommand(ctx,
+		"HDEL %s %s", hash.c_str(), tmp.c_str()));
+
+	if (!reply) {
+		warningstream << "deleteBlock: redis command 'HDEL' failed on block "
+			<< pos << ": " << ctx->errstr << std::endl;
+		freeReplyObject(reply);
+		return false;
+	} else if (reply->type == REDIS_REPLY_ERROR) {
+		warningstream << "deleteBlock: deleting block " << pos
+			<< " failed: " << std::string(reply->str, reply->len) << std::endl;
+		freeReplyObject(reply);
+		return false;
+	}
+
+	freeReplyObject(reply);
+	return true;
+}
+
+void Database_Redis::listAllLoadableBlocks(std::vector<v4s16> &dst)
+{
+	redisReply *reply = static_cast<redisReply *>(redisCommand(ctx, "HKEYS %s", hash.c_str()));
+	if (!reply) {
+		throw DatabaseException(std::string(
+			"Redis command 'HKEYS %s' failed: ") + ctx->errstr);
+	}
+
+	switch (reply->type) {
+	case REDIS_REPLY_ARRAY:
+		dst.reserve(reply->elements);
+		for (size_t i = 0; i < reply->elements; i++) {
+			assert(reply->element[i]->type == REDIS_REPLY_STRING);
+			dst.push_back(getIntegerAsBlock4D(stoi64(reply->element[i]->str)));
+		}
+		break;
+	case REDIS_REPLY_ERROR:
+		throw DatabaseException(std::string(
+			"Failed to get keys from database: ") +
+			std::string(reply->str, reply->len));
+	}
+	freeReplyObject(reply);
+}
+
+#endif // USE_REDIS

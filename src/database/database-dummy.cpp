@@ -41,6 +41,37 @@ void Database_Dummy::listAllLoadableBlocks(std::vector<v3s16> &dst)
 	}
 }
 
+bool Database_Dummy::saveBlock(const v4s16 &pos, std::string_view data)
+{
+	m_database[getBlockAsInteger4D(pos)] = data;
+	return true;
+}
+
+void Database_Dummy::loadBlock(const v4s16 &pos, std::string *block)
+{
+	s64 i = getBlockAsInteger4D(pos);
+	auto it = m_database.find(i);
+	if (it == m_database.end()) {
+		block->clear();
+		return;
+	}
+
+	*block = it->second;
+}
+
+bool Database_Dummy::deleteBlock(const v4s16 &pos)
+{
+	return m_database.erase(getBlockAsInteger4D(pos)) > 0;
+}
+
+void Database_Dummy::listAllLoadableBlocks(std::vector<v4s16> &dst)
+{
+	dst.reserve(m_database.size());
+	for (auto x = m_database.begin(); x != m_database.end(); ++x) {
+		dst.push_back(getIntegerAsBlock4D(x->first));
+	}
+}
+
 void Database_Dummy::savePlayer(RemotePlayer *player)
 {
 	m_player_database.insert(player->getName());

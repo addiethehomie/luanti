@@ -24,6 +24,12 @@ public:
 	bool deleteBlock(const v3s16 &pos);
 	void listAllLoadableBlocks(std::vector<v3s16> &dst);
 
+	// Phase-aware methods
+	bool saveBlock(const v4s16 &pos, std::string_view data);
+	void loadBlock(const v4s16 &pos, std::string *block);
+	bool deleteBlock(const v4s16 &pos);
+	void listAllLoadableBlocks(std::vector<v4s16> &dst);
+
 	void beginSave() {}
 	void endSave() {}
 

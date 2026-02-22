@@ -84,6 +84,49 @@ void Database_LevelDB::listAllLoadableBlocks(std::vector<v3s16> &dst)
 	ENSURE_STATUS_OK(it->status());  // Check for any errors found during the scan
 }
 
+bool Database_LevelDB::saveBlock(const v4s16 &pos, std::string_view data)
+{
+	leveldb::Slice data_s(data.data(), data.size());
+	leveldb::Status status = m_database->Put(leveldb::WriteOptions(),
+			i64tos(getBlockAsInteger4D(pos)), data_s);
+	if (!status.ok()) {
+		warningstream << "saveBlock: LevelDB error saving block "
+			<< pos << ": " << status.ToString() << std::endl;
+		return false;
+	}
+	return true;
+}
+
+void Database_LevelDB::loadBlock(const v4s16 &pos, std::string *block)
+{
+	leveldb::Status status = m_database->Get(leveldb::ReadOptions(),
+		i64tos(getBlockAsInteger4D(pos)), block);
+
+	if (!status.ok())
+		block->clear();
+}
+
+bool Database_LevelDB::deleteBlock(const v4s16 &pos)
+{
+	leveldb::Status status = m_database->Delete(leveldb::WriteOptions(),
+			i64tos(getBlockAsInteger4D(pos)));
+	if (!status.ok()) {
+		warningstream << "deleteBlock: LevelDB error deleting block "
+			<< pos << ": " << status.ToString() << std::endl;
+		return false;
+	}
+	return true;
+}
+
+void Database_LevelDB::listAllLoadableBlocks(std::vector<v4s16> &dst)
+{
+	std::unique_ptr<leveldb::Iterator> it(m_database->NewIterator(leveldb::ReadOptions()));
+	for (it->SeekToFirst(); it->Valid(); it->Next()) {
+		dst.push_back(getIntegerAsBlock4D(stoi64(it->key().ToString())));
+	}
+	ENSURE_STATUS_OK(it->status());  // Check for any errors found during the scan
+}
+
 PlayerDatabaseLevelDB::PlayerDatabaseLevelDB(const std::string &savedir)
 {
 	leveldb::Options options;

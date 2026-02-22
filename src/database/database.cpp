@@ -29,7 +29,7 @@ v3s16 MapDatabase::getIntegerAsBlock(s64 i)
 }
 
 // Phase-aware 4D coordinate encoding
-s64 MapDatabase::getBlockAsInteger(const v4s16 &pos)
+s64 MapDatabase::getBlockAsInteger4D(const v4s16 &pos)
 {
 	// Convert to unsigned to avoid sign extension issues
 	u16 x = (u16)pos.X;
@@ -43,7 +43,7 @@ s64 MapDatabase::getBlockAsInteger(const v4s16 &pos)
 		   ((s64) y << 16) + x;
 }
 
-v4s16 MapDatabase::getIntegerAsBlock(s64 i)
+v4s16 MapDatabase::getIntegerAsBlock4D(s64 i)
 {
 	// Decode 4D coordinates: P(16) | Z(16) | Y(16) | X(16)
 	// All values are unsigned, convert back to signed
