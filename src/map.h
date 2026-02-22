@@ -289,6 +289,9 @@ protected:
 	// Phase-aware block storage - maps 4D coordinates to blocks
 	std::unordered_map<v4s16, MapBlock*, v4s16::Hash> m_blocks;
 	
+	// Sector storage - maps 2D coordinates to sectors
+	std::map<v2s16, MapSector*> m_sectors;
+	
 	// Mutex for phase-aware block storage (thread safety)
 	std::mutex m_blocks_mutex;
 

@@ -29,6 +29,13 @@ Map::Map(IGameDef *gamedef):
 
 Map::~Map()
 {
+	// Free all sectors
+	for (auto &sector_entry : m_sectors) {
+		MapSector *sector = sector_entry.second;
+		delete sector;
+	}
+	m_sectors.clear();
+
 	// Free all phase-aware blocks
 	size_t used = 0;
 	{
@@ -71,6 +78,17 @@ void Map::dispatchEvent(const MapEditEvent &event)
 	for (MapEventReceiver *event_receiver : m_event_receivers) {
 		event_receiver->onMapEditEvent(event);
 	}
+}
+
+MapSector *Map::getSectorNoGenerateNoLock(v2s16 p2d)
+{
+	auto it = m_sectors.find(p2d);
+	return (it != m_sectors.end()) ? it->second : nullptr;
+}
+
+MapSector *Map::getSectorNoGenerate(v2s16 p2d)
+{
+	return getSectorNoGenerateNoLock(p2d);
 }
 
 
