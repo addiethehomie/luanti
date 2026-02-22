@@ -151,9 +151,9 @@ void TestMapDatabase::testSave()
 {
 	auto *db = provider->get();
 	std::string_view stuff{"wrong wrong wrong"};
-	UASSERT(db->saveBlock({1, 2, 3}, stuff));
+	UASSERT(db->saveBlock(v3s16{1, 2, 3}, stuff));
 	// overwriting is valid too
-	UASSERT(db->saveBlock({1, 2, 3}, test_data));
+	UASSERT(db->saveBlock(v3s16{1, 2, 3}, test_data));
 }
 
 void TestMapDatabase::testLoad()
@@ -162,7 +162,7 @@ void TestMapDatabase::testLoad()
 	std::string dest;
 
 	// successful load
-	db->loadBlock({1, 2, 3}, &dest);
+	db->loadBlock(v3s16{1, 2, 3}, &dest);
 	UASSERT(!dest.empty());
 	UASSERT(dest == test_data);
 
@@ -190,7 +190,7 @@ void TestMapDatabase::testRemove()
 	auto *db = provider->get();
 
 	// successful remove
-	UASSERT(db->deleteBlock({1, 2, 3}));
+	UASSERT(db->deleteBlock(v3s16{1, 2, 3}));
 
 	// failed remove
 	// FIXME: this isn't working consistently, maybe later

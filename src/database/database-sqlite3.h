@@ -205,12 +205,7 @@ private:
 	sqlite3_stmt *m_stmt_list = nullptr;
 	sqlite3_stmt *m_stmt_delete = nullptr;
 
-	// Phase-aware statements
-	sqlite3_stmt *m_stmt_read_4d = nullptr;
-	sqlite3_stmt *m_stmt_write_4d = nullptr;
-	sqlite3_stmt *m_stmt_list_4d = nullptr;
-	sqlite3_stmt *m_stmt_delete_4d = nullptr;
-};
+	};
 
 class PlayerDatabaseSQLite3 : private Database_SQLite3, public PlayerDatabase
 {

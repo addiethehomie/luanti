@@ -1121,7 +1121,11 @@ int ScriptApiSecurity::sl_os_clock(lua_State *L)
 {
 	static_assert(SSCSM_CLOCK_RESOLUTION_US > 0, "SSCSM_CLOCK_RESOLUTION_US must be positive");
 	auto t = clock();
-	t = t - t % (SSCSM_CLOCK_RESOLUTION_US * CLOCKS_PER_SEC / 1'000'000);
+	// Use floating point division to avoid integer truncation that results in zero
+	auto resolution_factor = static_cast<double>(SSCSM_CLOCK_RESOLUTION_US) * CLOCKS_PER_SEC / 1'000'000.0;
+	if (resolution_factor > 0) {
+		t = t - static_cast<clock_t>(t % static_cast<clock_t>(resolution_factor));
+	}
 	lua_pushnumber(L, static_cast<lua_Number>(t) / static_cast<lua_Number>(CLOCKS_PER_SEC));
 	return 1;
 }
