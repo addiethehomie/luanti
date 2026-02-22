@@ -29,7 +29,7 @@ public:
 		for (s16 z = bpmin.Z; z <= bpmax.Z; z++)
 		for (s16 x = bpmin.X; x <= bpmax.X; x++)
 		for (s16 y = bpmin.Y; y <= bpmax.Y; y++) {
-			MapBlock *block = getBlockNoCreateNoEx({x, y, z});
+			MapBlock *block = getBlockNoCreateNoEx(v3s16{x, y, z});
 			if (block) {
 				for (s16 zn=0; zn < MAP_BLOCKSIZE; zn++)
 				for (s16 yn=0; yn < MAP_BLOCKSIZE; yn++)
