@@ -120,13 +120,6 @@ bool Map::isValidPosition(const v4s16& pos)
 	return (block != NULL);
 }
 
-// Returns a CONTENT_IGNORE node if not found
-MapNode Map::getNode(v3s16 p, bool *is_valid_position)
-{
-	// Legacy wrapper: use Phase 0 for backwards compatibility
-	v4s16 pos4d(p.X, p.Y, p.Z, 0);
-	return getNode(pos4d, is_valid_position);
-}
 
 MapNode Map::getNode(const v4s16& pos, bool *is_valid_position)
 {
@@ -162,13 +155,6 @@ static void set_node_in_block(const NodeDefManager *nodedef, MapBlock *block,
 	block->setNodeNoCheck(relpos, n);
 }
 
-// throws InvalidPositionException if not found
-void Map::setNode(v3s16 p, MapNode n)
-{
-	// Legacy wrapper: use Phase 0 for backwards compatibility
-	v4s16 pos4d(p.X, p.Y, p.Z, 0);
-	setNode(pos4d, n);
-}
 
 void Map::setNode(const v4s16& pos, MapNode n)
 {
