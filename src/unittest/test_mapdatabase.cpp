@@ -151,18 +151,20 @@ void TestMapDatabase::testSave()
 {
 	auto *db = provider->get();
 	std::string_view stuff{"wrong wrong wrong"};
-	UASSERT(db->saveBlock(v3s16{1, 2, 3}, stuff));
+	const v3s16 test_pos{1, 2, 3};
+	UASSERT(db->saveBlock(test_pos, stuff));
 	// overwriting is valid too
-	UASSERT(db->saveBlock(v3s16{1, 2, 3}, test_data));
+	UASSERT(db->saveBlock(test_pos, test_data));
 }
 
 void TestMapDatabase::testLoad()
 {
 	auto *db = provider->get();
 	std::string dest;
+	const v3s16 test_pos{1, 2, 3};
 
 	// successful load
-	db->loadBlock(v3s16{1, 2, 3}, &dest);
+	db->loadBlock(test_pos, &dest);
 	UASSERT(!dest.empty());
 	UASSERT(dest == test_data);
 
@@ -188,13 +190,14 @@ void TestMapDatabase::testList(int expect)
 void TestMapDatabase::testRemove()
 {
 	auto *db = provider->get();
+	const v3s16 test_pos{1, 2, 3};
 
 	// successful remove
-	UASSERT(db->deleteBlock(v3s16{1, 2, 3}));
+	UASSERT(db->deleteBlock(test_pos));
 
 	// failed remove
 	// FIXME: this isn't working consistently, maybe later
-	//UASSERT(!db->deleteBlock({1, 2, 4}));
+	//	UASSERT(db->deleteBlock(v3s16{1, 2, 4}));
 }
 
 void TestMapDatabase::testPositionEncoding()

@@ -1123,8 +1123,13 @@ int ScriptApiSecurity::sl_os_clock(lua_State *L)
 	auto t = clock();
 	// Use floating point division to avoid integer truncation that results in zero
 	auto resolution_factor = static_cast<double>(SSCSM_CLOCK_RESOLUTION_US) * CLOCKS_PER_SEC / 1'000'000.0;
-	if (resolution_factor > 0) {
+	if (resolution_factor > 0.0) {
+<<<<<<< C:/Users/The Dope Pope/Documents/PROJECTS/Luanti4D/luanti/src/script/cpp_api/s_security.cpp
 		t = t - static_cast<clock_t>(t % static_cast<clock_t>(resolution_factor));
+=======
+		auto truncated_resolution = static_cast<clock_t>(resolution_factor);
+		t = t - static_cast<clock_t>(t % truncated_resolution);
+>>>>>>> C:/Users/The Dope Pope/.windsurf/worktrees/luanti/luanti-cc2134ab/src/script/cpp_api/s_security.cpp
 	}
 	lua_pushnumber(L, static_cast<lua_Number>(t) / static_cast<lua_Number>(CLOCKS_PER_SEC));
 	return 1;
