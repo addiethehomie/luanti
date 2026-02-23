@@ -147,10 +147,11 @@ protected:
 
 	sqlite3 *m_database = nullptr;
 
-private:
+protected:
 	// Open the database
 	void openDatabase();
 
+private:
 	bool m_initialized = false;
 
 	const std::string m_savedir;
