@@ -226,39 +226,12 @@ void MapDatabaseSQLite3::openDatabase()
 {
 	if (m_database) return;
 
-	std::string dbp = m_savedir + DIR_DELIM + m_dbname + ".sqlite";
-
-	// Open the database connection
-
-	if (!fs::CreateAllDirs(m_savedir)) {
-		errorstream << "Database_SQLite3: Failed to create directory \""
-			<< m_savedir << "\"" << std::endl;
-		throw FileNotGoodException("Failed to create database "
-				"save directory");
-	}
-
+	// Construct database path to check if it exists
+	std::string dbp = getSavedir() + DIR_DELIM + getDbname() + ".sqlite";
 	m_was_newly_created = !fs::PathExists(dbp);
 
-	auto flags = SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE;
-#ifdef SQLITE_OPEN_EXRESCODE
-	flags |= SQLITE_OPEN_EXRESCODE;
-#endif
-	SQLOK(sqlite3_open_v2(dbp.c_str(), &m_database, flags, NULL),
-		std::string("Failed to open SQLite3 database file ") + dbp);
-
-	SQLOK(sqlite3_busy_handler(m_database, Database_SQLite3::busyHandler,
-		m_busy_handler_data), "Failed to set SQLite3 busy handler");
-
-	if (m_was_newly_created) {
-		createDatabase();
-	}
-
-	std::string query_str = std::string("PRAGMA synchronous = ")
-			 + itos(g_settings->getU16("sqlite_synchronous"));
-	SQLOK(sqlite3_exec(m_database, query_str.c_str(), NULL, NULL, NULL),
-		"Failed to set SQLite3 synchronous mode");
-	SQLOK(sqlite3_exec(m_database, "PRAGMA foreign_keys = ON", NULL, NULL, NULL),
-		"Failed to enable SQLite3 foreign key support");
+	// Call base class method to handle database opening
+	Database_SQLite3::openDatabase();
 }
 
 

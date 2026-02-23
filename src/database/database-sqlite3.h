@@ -36,6 +36,10 @@ protected:
 	// Check if a table has a specific column
 	bool checkColumn(const char *table, const char *column);
 
+	// Getter methods for derived classes
+	const std::string& getSavedir() const { return m_savedir; }
+	const std::string& getDbname() const { return m_dbname; }
+
 	/* Value conversion helpers */
 
 	inline void str_to_sqlite(sqlite3_stmt *s, int iCol, std::string_view str) const
