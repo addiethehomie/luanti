@@ -21,10 +21,10 @@ struct v4s16 {
 	
 	// Constructor from v3s16 (defaults to Phase 0)
 	v4s16(s16 x, s16 y, s16 z, s16 p = 0) : X(x), Y(y), Z(z), P(p) {}
-	
+
 	// Constructor from v3s16 struct
 	v4s16(const v3s16& pos, s16 p = 0) : X(pos.X), Y(pos.Y), Z(pos.Z), P(p) {}
-	
+
 	// Default constructor
 	v4s16() = default;
 	
@@ -39,16 +39,16 @@ struct v4s16 {
 			
 			// Use proper bit separation with multiplication for better distribution
 			// Ensure shifts are within size_t bounds (typically 32-bit on 32-bit systems)
-			return ((size_t)x << 16) ^ 
-				   ((size_t)y << 8) ^ 
-				   ((size_t)z << 4) ^ 
+			return ((size_t)x << 16) ^
+				   ((size_t)y << 8) ^
+				   ((size_t)z << 4) ^
 				   (size_t)p;
 		}
 	};
 	
 	// Equality operator
 	bool operator==(const v4s16& other) const {
-		return X == other.X && Y == other.Y && 
+		return X == other.X && Y == other.Y &&
 			   Z == other.Z && P == other.P;
 	}
 	

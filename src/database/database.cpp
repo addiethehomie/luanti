@@ -39,7 +39,7 @@ s64 MapDatabase::getBlockAsInteger4D(const v4s16 &pos)
 	
 	// Extend encoding to include phase in the upper bits
 	// Phase gets 16 bits, X,Y,Z get 16 bits each
-	return ((s64) p << 48) + ((s64) z << 32) + 
+	return ((s64) p << 48) + ((s64) z << 32) +
 		   ((s64) y << 16) + x;
 }
 

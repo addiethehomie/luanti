@@ -1436,6 +1436,9 @@ void ModApiEnv::Initialize(lua_State *L, int top)
 	API_FCT(forceload_free_block);
 	API_FCT(compare_block_status);
 	API_FCT(get_translated_string);
+	API_FCT(register_on_generated);
+	API_FCT(register_on_player_phase_change);
+	API_FCT(get_player_phase);
 }
 
 void ModApiEnv::InitializeClient(lua_State *L, int top)
@@ -1644,6 +1647,53 @@ void ModApiEnvVM::InitializeEmerge(lua_State *L, int top)
 	API_FCT(find_nodes_in_area);
 	API_FCT(find_nodes_in_area_under_air);
 	API_FCT(spawn_tree);
+}
+
+// register_on_generated(callback)
+int ModApiEnv::l_register_on_generated(lua_State *L)
+{
+	NO_MAP_LOCK_REQUIRED;
+	luaL_checktype(L, 1, LUA_TFUNCTION);
+	
+	// Store the callback in the registry for later use
+	lua_setfield(L, LUA_REGISTRYINDEX, "register_on_generated");
+	lua_pushvalue(L, 1);
+	return 1;
+}
+
+// register_on_player_phase_change(callback)
+int ModApiEnv::l_register_on_player_phase_change(lua_State *L)
+{
+	NO_MAP_LOCK_REQUIRED;
+	luaL_checktype(L, 1, LUA_TFUNCTION);
+	
+	// Store the callback in the registry for later use
+	lua_setfield(L, LUA_REGISTRYINDEX, "register_on_player_phase_change");
+	lua_pushvalue(L, 1);
+	return 1;
+}
+
+// get_player_phase(player_name)
+int ModApiEnv::l_get_player_phase(lua_State *L)
+{
+	NO_MAP_LOCK_REQUIRED;
+	
+	const char *player_name = luaL_checkstring(L, 1);
+	ServerEnvironment *env = getServer(L)->getEnv();
+	
+	if (!env) {
+		lua_pushnil(L);
+		return 1;
+	}
+	
+	RemotePlayer *player = env->getPlayer(player_name);
+	if (!player) {
+		lua_pushnil(L);
+		return 1;
+	}
+	
+	lua_pushinteger(L, player->getCurrentPhase());
+	return 1;
 }
 
 #undef GET_VM_PTR

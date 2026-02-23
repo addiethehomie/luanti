@@ -190,6 +190,9 @@ protected:
 	virtual void initStatements();
 
 private:
+	// Override to track if database was newly created
+	void openDatabase();
+
 	/// @brief Bind block position into statement at column index
 	/// @return index of next column after position
 	int bindPos(sqlite3_stmt *stmt, v3s16 pos, int index = 1);
@@ -199,6 +202,7 @@ private:
 	int bindPos(sqlite3_stmt *stmt, v4s16 pos, int index = 1);
 
 	bool m_new_format = false;
+	bool m_was_newly_created = false;
 
 	sqlite3_stmt *m_stmt_read = nullptr;
 	sqlite3_stmt *m_stmt_write = nullptr;

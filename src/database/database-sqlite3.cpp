@@ -208,9 +208,9 @@ Database_SQLite3::~Database_SQLite3()
  * Map database
  */
 
-MapDatabaseSQLite3::MapDatabaseSQLite3(const std::string &savedir):
+MapDatabaseSQLite3::MapDatabaseSQLite3(const std::string &savedir) :
 	Database_SQLite3(savedir, "map"),
-	MapDatabase()
+	m_was_newly_created(false)
 {
 }
 
@@ -220,6 +220,45 @@ MapDatabaseSQLite3::~MapDatabaseSQLite3()
 	FINALIZE_STATEMENT(write)
 	FINALIZE_STATEMENT(list)
 	FINALIZE_STATEMENT(delete)
+}
+
+void MapDatabaseSQLite3::openDatabase()
+{
+	if (m_database) return;
+
+	std::string dbp = m_savedir + DIR_DELIM + m_dbname + ".sqlite";
+
+	// Open the database connection
+
+	if (!fs::CreateAllDirs(m_savedir)) {
+		errorstream << "Database_SQLite3: Failed to create directory \""
+			<< m_savedir << "\"" << std::endl;
+		throw FileNotGoodException("Failed to create database "
+				"save directory");
+	}
+
+	m_was_newly_created = !fs::PathExists(dbp);
+
+	auto flags = SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE;
+#ifdef SQLITE_OPEN_EXRESCODE
+	flags |= SQLITE_OPEN_EXRESCODE;
+#endif
+	SQLOK(sqlite3_open_v2(dbp.c_str(), &m_database, flags, NULL),
+		std::string("Failed to open SQLite3 database file ") + dbp);
+
+	SQLOK(sqlite3_busy_handler(m_database, Database_SQLite3::busyHandler,
+		m_busy_handler_data), "Failed to set SQLite3 busy handler");
+
+	if (m_was_newly_created) {
+		createDatabase();
+	}
+
+	std::string query_str = std::string("PRAGMA synchronous = ")
+			 + itos(g_settings->getU16("sqlite_synchronous"));
+	SQLOK(sqlite3_exec(m_database, query_str.c_str(), NULL, NULL, NULL),
+		"Failed to set SQLite3 synchronous mode");
+	SQLOK(sqlite3_exec(m_database, "PRAGMA foreign_keys = ON", NULL, NULL, NULL),
+		"Failed to enable SQLite3 foreign key support");
 }
 
 
@@ -235,7 +274,7 @@ void MapDatabaseSQLite3::createDatabase()
 			"`x` INTEGER,"
 			"`y` INTEGER,"
 			"`z` INTEGER,"
-			"`p` INTEGER DEFAULT 0,  -- Phase column (0 for legacy compatibility)"
+			"`p` INTEGER DEFAULT 0,  -- Phase column (0 for legacy compatibility)\n"
 			"`data` BLOB NOT NULL,"
 			// Unified primary key includes phase dimension
 			"PRIMARY KEY (`x`, `z`, `y`, `p`)"
@@ -253,19 +292,22 @@ void MapDatabaseSQLite3::initStatements()
 		<< (m_new_format ? "yes" : "no") << std::endl;
 
 	// Check for phase column support and migrate if needed
-	bool has_phase_column = checkColumn("blocks", "p");
-	if (!has_phase_column) {
-		infostream << "MapDatabaseSQLite3: Adding phase column for 4D support" << std::endl;
-		SQLOK(sqlite3_exec(m_database, 
-			"ALTER TABLE `blocks` ADD COLUMN `p` INTEGER DEFAULT 0", 
-			NULL, NULL, NULL),
-			"Failed to add phase column");
-		
-		// Update primary key to include phase dimension
-		SQLOK(sqlite3_exec(m_database, 
-			"CREATE UNIQUE INDEX IF NOT EXISTS `blocks_idx` ON `blocks` (`x`, `z`, `y`, `p`)", 
-			NULL, NULL, NULL),
-			"Failed to create unified index");
+	// Only run this logic for existing databases, not newly created ones
+	if (!m_was_newly_created) {
+		bool has_phase_column = checkColumn("blocks", "p");
+		if (!has_phase_column) {
+			infostream << "MapDatabaseSQLite3: Adding phase column for 4D support" << std::endl;
+			SQLOK(sqlite3_exec(m_database, 
+					"ALTER TABLE `blocks` ADD COLUMN `p` INTEGER DEFAULT 0", 
+					NULL, NULL, NULL),
+					"Failed to add phase column");
+			
+			// Update primary key to include phase dimension
+			SQLOK(sqlite3_exec(m_database, 
+					"CREATE UNIQUE INDEX IF NOT EXISTS `blocks_idx` ON `blocks` (`x`, `z`, `y`, `p`)", 
+					NULL, NULL, NULL),
+					"Failed to create unified index");
+		}
 	}
 
 	// Unified schema supports both legacy (p=0) and phase-aware operations

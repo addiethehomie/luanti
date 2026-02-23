@@ -226,6 +226,18 @@ private:
 	// get_translated_string(lang_code, string)
 	static int l_get_translated_string(lua_State * L);
 
+	// register_on_generated(callback)
+	// Register callback for map generation with phase support
+	static int l_register_on_generated(lua_State *L);
+
+	// register_on_player_phase_change(callback)
+	// Register callback for player phase changes
+	static int l_register_on_player_phase_change(lua_State *L);
+
+	// get_player_phase(player_name)
+	// Get current phase of a player
+	static int l_get_player_phase(lua_State *L);
+
 public:
 	static void Initialize(lua_State *L, int top);
 	static void InitializeClient(lua_State *L, int top);
