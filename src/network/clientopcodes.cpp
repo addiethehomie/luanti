@@ -173,8 +173,8 @@ const ServerCommandFactory serverCommandFactoryTable[TOSERVER_NUM_MSG_TYPES] =
 	null_command_factory, // 0x2a
 	null_command_factory, // 0x2b
 	null_command_factory, // 0x2c
-	{ "TOCLIENT_BLOCKDATA_4D",      TOCLIENT_STATE_CONNECTED, &Client::handleCommand_BlockData4D }, // 0x2d
-	{ "TOCLIENT_PHASE_CHANGE",      TOCLIENT_STATE_CONNECTED, &Client::handleCommand_PhaseChange }, // 0x2e
+	null_command_handler, // 0x2d
+	null_command_handler, // 0x2e
 	null_command_factory, // 0x2f
 	null_command_factory, // 0x30
 	{ "TOSERVER_INVENTORY_ACTION",   0, true }, // 0x31
